@@ -1,0 +1,3477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grandville (1948) — Interactive 3D Post-WWII Suburban Town</title>
+  <meta name="description" content="Realistic 3D Simulation of Grandville: A 1948 Post-WWII Suburban Community. Designed with complex road networks, detailed buildings, lively walking citizens with costume changes, cookie-cutter veterans homes, and transit.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
+
+  <!-- Three.js, OrbitControls, TWEEN (Local with CDN fallback) -->
+  <script src="lib/three.min.js"></script>
+  <script>
+    if (typeof THREE === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');
+    }
+  </script>
+  <script src="lib/OrbitControls.js"></script>
+  <script>
+    if (typeof THREE.OrbitControls === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"><\/script>');
+    }
+  </script>
+  <script src="lib/tween.umd.js"></script>
+  <script>
+    if (typeof TWEEN === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"><\/script>');
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --card-bg: rgba(15, 23, 42, 0.92);
+      --card-border: rgba(255, 255, 255, 0.14);
+      --accent-blue: #38bdf8;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-purple: #a855f7;
+      --accent-gold: #fbbf24;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+    }
+
+    #webgl-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      display: block;
+    }
+
+    /* 3D Floating Labels */
+    #labels-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+      overflow: hidden;
+    }
+
+    .zone-marker {
+      position: absolute;
+      pointer-events: auto;
+      transform: translate(-50%, -100%);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: transform 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease;
+      will-change: transform, left, top;
+    }
+
+    .zone-marker:hover {
+      transform: translate(-50%, -115%) scale(1.08);
+      z-index: 25;
+    }
+
+    .marker-bubble {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1.5px solid rgba(255, 255, 255, 0.22);
+      border-radius: 9999px;
+      box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.7), 0 0 14px rgba(56, 189, 248, 0.25);
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .zone-marker.highlight .marker-bubble {
+      border-color: var(--accent-gold);
+      box-shadow: 0 0 18px rgba(251, 191, 36, 0.45);
+      background: linear-gradient(135deg, rgba(30, 27, 75, 0.95), rgba(15, 23, 42, 0.95));
+    }
+
+    .zone-marker:hover .marker-bubble {
+      border-color: var(--accent-blue);
+      box-shadow: 0 8px 24px rgba(56, 189, 248, 0.5);
+    }
+
+    .marker-icon {
+      font-size: 12.5px;
+    }
+
+    .marker-pin {
+      width: 2px;
+      height: 12px;
+      background: linear-gradient(to bottom, rgba(255, 255, 255, 0.85), transparent);
+    }
+
+    .marker-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      box-shadow: 0 0 8px var(--accent-blue);
+    }
+
+    .zone-marker.highlight .marker-dot {
+      background: var(--accent-gold);
+      box-shadow: 0 0 10px var(--accent-gold);
+    }
+
+    /* Top Navigation Header */
+    .top-header {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      z-index: 30;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    .branding-card {
+      pointer-events: auto;
+      background: var(--card-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 11px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.6);
+    }
+
+    .badge-year {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #0f172a;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 12px;
+      padding: 4px 9px;
+      border-radius: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-meta {
+      font-size: 11px;
+      color: var(--accent-blue);
+      font-weight: 600;
+      margin-top: 1px;
+    }
+
+    .brand-desc {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .action-btn {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      box-shadow: 0 8px 20px -4px rgba(0,0,0,0.4);
+    }
+
+    .action-btn:hover {
+      background: rgba(30, 41, 59, 0.95);
+      border-color: rgba(255, 255, 255, 0.35);
+      transform: translateY(-2px);
+    }
+
+    .action-btn.gold {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      border: 1px solid rgba(251, 191, 36, 0.4);
+      color: #ffffff;
+    }
+
+    .action-btn.gold:hover {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      box-shadow: 0 10px 25px rgba(245, 158, 11, 0.45);
+    }
+
+    /* Filter Bar */
+    .filter-bar {
+      position: absolute;
+      top: 84px;
+      left: 16px;
+      z-index: 30;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 5px 8px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      max-width: calc(100vw - 32px);
+    }
+
+    .filter-chip {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+    }
+
+    .filter-chip:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .filter-chip.active {
+      background: var(--accent-blue);
+      color: #090d16;
+      font-weight: 700;
+    }
+
+    /* Bottom Control Bar */
+    .bottom-bar {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--card-border);
+      padding: 6px 12px;
+      border-radius: 9999px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.65);
+    }
+
+    .view-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 6px 11px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s ease;
+    }
+
+    .view-btn:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .view-btn.active {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+    }
+
+    .divider {
+      width: 1px;
+      height: 16px;
+      background: rgba(255, 255, 255, 0.16);
+      margin: 0 2px;
+    }
+
+    /* Clean Slide-out Inspector Panel (Name on Top, Blank for User Below) */
+    .inspector-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      bottom: 16px;
+      width: 420px;
+      max-width: calc(100vw - 32px);
+      background: var(--card-bg);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      z-index: 40;
+      display: flex;
+      flex-direction: column;
+      box-shadow: -15px 0 50px rgba(0, 0, 0, 0.75);
+      transform: translateX(120%);
+      transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+      user-select: text;
+    }
+
+    .inspector-panel.open {
+      transform: translateX(0);
+    }
+
+    .panel-header {
+      padding: 22px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      background: linear-gradient(to bottom, rgba(255,255,255,0.04), transparent);
+    }
+
+    .panel-tag {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+
+    .tag-commercial { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); }
+    .tag-residential { background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.35); }
+    .tag-civic { background: rgba(244, 63, 94, 0.2); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.35); }
+    .tag-recreation { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); }
+    .tag-transit { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); }
+    .tag-utilities { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35); }
+
+    .panel-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 21px;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.25;
+    }
+
+    .close-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: none;
+      color: var(--text-muted);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: all 0.2s ease;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.22);
+      color: #ffffff;
+      transform: rotate(90deg);
+    }
+
+    .panel-body {
+      padding: 22px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .blank-entry-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px dashed rgba(255, 255, 255, 0.22);
+      border-radius: 14px;
+      padding: 18px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 240px;
+    }
+
+    .blank-entry-header {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-blue);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .blank-textarea {
+      width: 100%;
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #f1f5f9;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 13.5px;
+      line-height: 1.65;
+      resize: none;
+    }
+
+    .blank-textarea::placeholder {
+      color: rgba(148, 163, 184, 0.55);
+      font-style: italic;
+    }
+
+    .panel-footer {
+      padding: 16px 22px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      gap: 10px;
+      background: rgba(10, 15, 30, 0.6);
+    }
+
+    /* Compass HUD */
+    .compass-hud {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      z-index: 30;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 50%;
+      width: 52px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.55);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .compass-hud:hover {
+      transform: scale(1.1);
+    }
+
+    .compass-arrow {
+      width: 24px;
+      height: 24px;
+      transition: transform 0.1s linear;
+    }
+
+    .controls-hint {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      z-index: 25;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    @media (max-width: 860px) {
+      .filter-bar { display: none; }
+      .branding-card { padding: 8px 14px; }
+      .brand-title { font-size: 15px; }
+      .inspector-panel { width: 100%; top: auto; height: 55vh; right: 0; bottom: 0; border-radius: 20px 20px 0 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- WebGL Render Canvas -->
+  <canvas id="webgl-canvas"></canvas>
+
+  <!-- 3D Projected Floating Labels -->
+  <div id="labels-container"></div>
+
+  <!-- Top Navigation & Branding -->
+  <header class="top-header">
+    <div class="branding-card">
+      <span class="badge-year">1948</span>
+      <div>
+        <div class="brand-title">
+          <span>Grandville Master Plan</span>
+          <span style="font-size: 11.5px; opacity: 0.6;">✦ Post-WWII Suburban Simulation</span>
+        </div>
+        <div class="brand-meta">Urban Planning Firm: Bill, Ethan, and Jayen</div>
+        <div class="brand-desc">Pop. ~1,000 • Cookie-Cutter Homes • Interconnected Grid • Open to All Races & Religions</div>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button class="action-btn gold" id="btn-quick-welcome" title="Zoom to Welcome to Grandville Banner">
+        <span>🚩</span> Welcome Banner
+      </button>
+      <button class="action-btn" id="btn-quick-commercial" title="Inspect Commercial Downtown Main Street">
+        <span>🏪</span> Main Street
+      </button>
+      <button class="action-btn" id="btn-audio" title="Toggle 1948 Ambient Town Sound">
+        <span id="audio-icon">🔇</span> Sound
+      </button>
+      <button class="action-btn" id="btn-tod" title="Toggle Daytime / Golden Hour / Night">
+        <span id="tod-icon">☀️</span> <span id="tod-label">Daylight</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Category Filter Bar -->
+  <nav class="filter-bar" id="filter-bar">
+    <button class="filter-chip active" data-filter="all">★ All Places (22)</button>
+    <button class="filter-chip" data-filter="commercial">🏪 Commercial & Shops</button>
+    <button class="filter-chip" data-filter="residential">🏡 Veterans Housing</button>
+    <button class="filter-chip" data-filter="civic">🏫 Civic & Schools</button>
+    <button class="filter-chip" data-filter="recreation">🏀 Parks & Sports</button>
+    <button class="filter-chip" data-filter="transit">🚆 Transit & Highways</button>
+    <button class="filter-chip" data-filter="utilities">💧 Water & Utilities</button>
+  </nav>
+
+  <!-- Bottom Navigation & Camera Views -->
+  <div class="bottom-bar">
+    <button class="view-btn active" data-view="overview">🌐 City Birds-Eye</button>
+    <button class="view-btn" data-view="welcome">🚩 Welcome Arch</button>
+    <button class="view-btn" data-view="commercial">🏪 Commercial Row</button>
+    <button class="view-btn" data-view="tailor">✂️ Tailor Shop</button>
+    <button class="view-btn" data-view="pub">🍺 Town Pub</button>
+    <button class="view-btn" data-view="veterans">🏡 Veterans Rows</button>
+    <button class="view-btn" data-view="school">🏫 School Campus</button>
+    <button class="view-btn" data-view="sports">🏀 Basketball Court</button>
+    <button class="view-btn" data-view="transit">🚆 Train Station</button>
+    <div class="divider"></div>
+    <button class="view-btn" id="btn-toggle-camera-mode" title="Toggle Perspective / Top-Down Blueprint View">📐 2D Blueprint</button>
+    <button class="view-btn" id="btn-reset-cam" title="Reset Camera">↺ Reset</button>
+  </div>
+
+  <!-- Controls Hint -->
+  <div class="controls-hint">
+    <div>🖱️ <b>Left Click + Drag:</b> Rotate 3D Town View</div>
+    <div>🖱️ <b>Right Click + Drag:</b> Pan Camera Across City</div>
+    <div>📜 <b>Scroll Wheel:</b> Zoom In / Out</div>
+    <div>🎯 <b>Click Any Place:</b> Show Name (Blank below to fill in)</div>
+    <div>🚶 <b>Walking Citizens:</b> Non-repetitive AI, enter shops & change outfits!</div>
+  </div>
+
+  <!-- Compass HUD -->
+  <div class="compass-hud" id="compass-btn" title="Click to Align View North">
+    <svg class="compass-arrow" id="compass-arrow" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2L17 12H7L12 2Z" fill="#f43f5e"/>
+      <path d="M12 22L7 12H17L12 22Z" fill="#94a3b8"/>
+    </svg>
+  </div>
+
+  <!-- Slide-out Zone Detail Inspector (Shows Name on Top, Blank Space Below) -->
+  <aside class="inspector-panel" id="inspector-panel">
+    <div class="panel-header">
+      <div>
+        <span class="panel-tag tag-commercial" id="panel-tag">Commercial</span>
+        <h2 class="panel-title" id="panel-title">Grandville Custom Tailor</h2>
+      </div>
+      <button class="close-btn" id="panel-close-btn">&times;</button>
+    </div>
+
+    <div class="panel-body">
+      <div class="blank-entry-card">
+        <div class="blank-entry-header">
+          <span>📝</span> Description & Planning Notes
+        </div>
+        <textarea class="blank-textarea" id="zone-user-notes" placeholder="[ Blank — Click here to enter custom notes or text for this place... ]"></textarea>
+      </div>
+    </div>
+
+    <div class="panel-footer">
+      <button class="action-btn gold" id="btn-focus-zone" style="flex:1;">
+        <span>🎯</span> Orbit Close-Up
+      </button>
+      <button class="action-btn" id="btn-panel-next" title="Next Place">Next →</button>
+    </div>
+  </aside>
+
+  <!-- 3D Logic & Procedural Engine -->
+  <script>
+    /* =====================================================================
+       1. DATA ENGINE: 22 REAL PLACES IN GRANDVILLE (1948)
+       ===================================================================== */
+    const TOWN_ZONES = [
+      {
+        id: 'welcome-arch',
+        name: 'Welcome to Grandville Monumental Banner',
+        category: 'civic',
+        tag: 'Town Entrance',
+        icon: '🚩',
+        highlight: true,
+        pos: { x: 0, y: 12.0, z: -115 },
+        camPos: { x: 0, y: 14, z: -85 },
+        targetPos: { x: 0, y: 8, z: -115 }
+      },
+      {
+        id: 'tailor-shop',
+        name: 'Grandville Custom Tailor & Cleaners',
+        category: 'commercial',
+        tag: 'Retail & Service',
+        icon: '✂️',
+        highlight: true,
+        pos: { x: -35, y: 8.5, z: -65 },
+        camPos: { x: -35, y: 11, z: -45 },
+        targetPos: { x: -35, y: 4, z: -65 }
+      },
+      {
+        id: 'grocery-store',
+        name: 'Grand Union Supermarket & Grocery',
+        category: 'commercial',
+        tag: 'Food Market',
+        icon: '🛒',
+        pos: { x: 38, y: 9.5, z: -65 },
+        camPos: { x: 38, y: 13, z: -40 },
+        targetPos: { x: 38, y: 4.5, z: -65 }
+      },
+      {
+        id: 'tavern-pub',
+        name: 'The Grandville Tavern & Pub',
+        category: 'commercial',
+        tag: 'Neighborhood Pub',
+        icon: '🍺',
+        highlight: true,
+        pos: { x: -65, y: 8.5, z: -65 },
+        camPos: { x: -65, y: 11, z: -45 },
+        targetPos: { x: -65, y: 4, z: -65 }
+      },
+      {
+        id: 'hardware-shop',
+        name: 'Grandville Hardware & Home Supply (Shop 1)',
+        category: 'commercial',
+        tag: 'Local Shop 1',
+        icon: '🔨',
+        pos: { x: 68, y: 8.5, z: -65 },
+        camPos: { x: 68, y: 11, z: -45 },
+        targetPos: { x: 68, y: 4, z: -65 }
+      },
+      {
+        id: 'pharmacy-shop',
+        name: 'Corner Pharmacy & Soda Fountain (Shop 2)',
+        category: 'commercial',
+        tag: 'Local Shop 2',
+        icon: '💊',
+        pos: { x: -15, y: 8.5, z: -65 },
+        camPos: { x: -15, y: 11, z: -45 },
+        targetPos: { x: -15, y: 4, z: -65 }
+      },
+      {
+        id: 'bakery-shop',
+        name: 'Grandville Bakery & Delicatessen (Shop 3)',
+        category: 'commercial',
+        tag: 'Local Shop 3',
+        icon: '🥖',
+        pos: { x: 15, y: 8.5, z: -65 },
+        camPos: { x: 15, y: 11, z: -45 },
+        targetPos: { x: 15, y: 4, z: -65 }
+      },
+      {
+        id: 'service-station',
+        name: '1948 Service & Gas Station',
+        category: 'commercial',
+        tag: 'Automotive Service',
+        icon: '⛽',
+        pos: { x: -105, y: 8.0, z: -65 },
+        camPos: { x: -105, y: 12, z: -45 },
+        targetPos: { x: -105, y: 3.5, z: -65 }
+      },
+      {
+        id: 'light-commercial',
+        name: 'Light Commercial & Trade Workshops',
+        category: 'commercial',
+        tag: 'Light Industry',
+        icon: '🏭',
+        pos: { x: 105, y: 8.5, z: -65 },
+        camPos: { x: 105, y: 13, z: -40 },
+        targetPos: { x: 105, y: 4, z: -65 }
+      },
+      {
+        id: 'veterans-west',
+        name: 'Veterans Housing: West Maple Sector (~1,000 Pop)',
+        category: 'residential',
+        tag: 'Cookie-Cutter Homes',
+        icon: '🏡',
+        pos: { x: -65, y: 8.5, z: 20 },
+        camPos: { x: -65, y: 18, z: 55 },
+        targetPos: { x: -65, y: 3.5, z: 20 }
+      },
+      {
+        id: 'veterans-east',
+        name: 'Veterans Housing: East Oak Sector (~1,000 Pop)',
+        category: 'residential',
+        tag: 'Cookie-Cutter Homes',
+        icon: '🏡',
+        pos: { x: 65, y: 8.5, z: 20 },
+        camPos: { x: 65, y: 18, z: 55 },
+        targetPos: { x: 65, y: 3.5, z: 20 }
+      },
+      {
+        id: 'veterans-south',
+        name: 'Veterans Housing: South Roosevelt Sector',
+        category: 'residential',
+        tag: 'Cookie-Cutter Homes',
+        icon: '🏡',
+        pos: { x: 0, y: 8.5, z: 120 },
+        camPos: { x: 0, y: 18, z: 155 },
+        targetPos: { x: 0, y: 3.5, z: 120 }
+      },
+      {
+        id: 'school-campus',
+        name: 'Grandville Memorial School (Elementary & High)',
+        category: 'civic',
+        tag: 'Education Campus',
+        icon: '🏫',
+        pos: { x: 75, y: 14.5, z: -15 },
+        camPos: { x: 75, y: 22, z: 15 },
+        targetPos: { x: 75, y: 6, z: -15 }
+      },
+      {
+        id: 'church-worship',
+        name: 'Community Church (Open to All Religions)',
+        category: 'civic',
+        tag: 'Place of Worship',
+        icon: '⛪',
+        pos: { x: -75, y: 16.0, z: -15 },
+        camPos: { x: -75, y: 20, z: 15 },
+        targetPos: { x: -75, y: 6, z: -15 }
+      },
+      {
+        id: 'community-center',
+        name: 'Grandville Community Centre & Olympic Pool',
+        category: 'civic',
+        tag: 'Civic Centre',
+        icon: '🏛️',
+        pos: { x: -30, y: 10.0, z: -15 },
+        camPos: { x: -30, y: 17, z: 15 },
+        targetPos: { x: -30, y: 4.5, z: -15 }
+      },
+      {
+        id: 'medical-clinic',
+        name: 'Cottage Medical Clinic & Ambulance',
+        category: 'civic',
+        tag: 'Healthcare',
+        icon: '🏥',
+        pos: { x: 30, y: 9.5, z: -15 },
+        camPos: { x: 30, y: 15, z: 15 },
+        targetPos: { x: 30, y: 3.5, z: -15 }
+      },
+      {
+        id: 'fire-police',
+        name: 'Fire and Police Emergency Station',
+        category: 'civic',
+        tag: 'Emergency Services',
+        icon: '🚒',
+        pos: { x: -105, y: 9.5, z: -15 },
+        camPos: { x: -105, y: 15, z: 15 },
+        targetPos: { x: -105, y: 4, z: -15 }
+      },
+      {
+        id: 'basketball-courts',
+        name: 'Basketball Courts & Sports Recreation Area',
+        category: 'recreation',
+        tag: 'Sports Recreation',
+        icon: '🏀',
+        highlight: true,
+        pos: { x: 105, y: 7.5, z: -15 },
+        camPos: { x: 105, y: 14, z: 15 },
+        targetPos: { x: 105, y: 2.5, z: -15 }
+      },
+      {
+        id: 'central-park-playground',
+        name: "Central Park, Lake & Children's Playground",
+        category: 'recreation',
+        tag: 'Parks & Playgrounds',
+        icon: '🌲',
+        pos: { x: 0, y: 8.5, z: 50 },
+        camPos: { x: 0, y: 22, z: 85 },
+        targetPos: { x: 0, y: 2.5, z: 50 }
+      },
+      {
+        id: 'train-station',
+        name: 'Grandville Commuter Terminal (Rail to Central City)',
+        category: 'transit',
+        tag: 'Passenger Rail',
+        icon: '🚆',
+        highlight: true,
+        pos: { x: 50, y: 10.5, z: -155 },
+        camPos: { x: 50, y: 18, z: -125 },
+        targetPos: { x: 50, y: 4, z: -155 }
+      },
+      {
+        id: 'bus-transit',
+        name: 'Municipal Bus Network & Central Terminal',
+        category: 'transit',
+        tag: 'Public Transit',
+        icon: '🚌',
+        pos: { x: -50, y: 9.0, z: -115 },
+        camPos: { x: -50, y: 15, z: -85 },
+        targetPos: { x: -50, y: 3, z: -115 }
+      },
+      {
+        id: 'central-city-highway',
+        name: 'Main 4-Lane Highway to Central City',
+        category: 'transit',
+        tag: 'Regional Expressway',
+        icon: '🛣️',
+        pos: { x: 0, y: 7.5, z: -180 },
+        camPos: { x: 0, y: 24, z: -145 },
+        targetPos: { x: 0, y: 1.5, z: -180 }
+      },
+      {
+        id: 'water-treatment',
+        name: 'Municipal Water Treatment Facility',
+        category: 'utilities',
+        tag: 'Water Treatment',
+        icon: '⚙️',
+        pos: { x: -140, y: 9.0, z: 50 },
+        camPos: { x: -140, y: 17, z: 80 },
+        targetPos: { x: -140, y: 4, z: 50 }
+      },
+      {
+        id: 'water-tower',
+        name: 'Elevated Municipal Water Tower',
+        category: 'utilities',
+        tag: 'Water Storage',
+        icon: '💧',
+        pos: { x: -140, y: 30.0, z: 15 },
+        camPos: { x: -140, y: 28, z: 45 },
+        targetPos: { x: -140, y: 16, z: 15 }
+      }
+    ];
+
+    /* =====================================================================
+       2. THREE.JS 3D SCENE SETUP & PROCEDURAL 1948 TOWN BUILDER
+       ===================================================================== */
+    const canvas = document.getElementById('webgl-canvas');
+    const labelsContainer = document.getElementById('labels-container');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x93c5fd); // Clear 1948 blue sky
+    scene.fog = new THREE.FogExp2(0x93c5fd, 0.0035);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 950);
+    camera.position.set(0, 115, 165);
+
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 - 0.04;
+    controls.minDistance = 6;
+    controls.maxDistance = 420;
+    controls.target.set(0, 0, 0);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.72);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xfffaed, 0.95);
+    dirLight.position.set(90, 140, 80);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.near = 10;
+    dirLight.shadow.camera.far = 480;
+    dirLight.shadow.camera.left = -220;
+    dirLight.shadow.camera.right = 220;
+    dirLight.shadow.camera.top = 220;
+    dirLight.shadow.camera.bottom = -220;
+    dirLight.shadow.bias = -0.0004;
+    scene.add(dirLight);
+
+    const hemiLight = new THREE.HemisphereLight(0xdff0ff, 0x4d7c0f, 0.45);
+    scene.add(hemiLight);
+
+    // Canvas Texture Generator Helper
+    function makeCanvasTexture(width, height, drawFn) {
+      const cv = document.createElement('canvas');
+      cv.width = width;
+      cv.height = height;
+      const ctx = cv.getContext('2d');
+      drawFn(ctx, width, height);
+      const tex = new THREE.CanvasTexture(cv);
+      tex.anisotropy = 4;
+      return tex;
+    }
+
+    // Shared Materials
+    const grassMat = new THREE.MeshLambertMaterial({ color: 0x588d37 });
+    const darkGrassMat = new THREE.MeshLambertMaterial({ color: 0x3d6622 });
+    const asphaltMat = new THREE.MeshLambertMaterial({ color: 0x242a33 });
+    const highwayAsphaltMat = new THREE.MeshLambertMaterial({ color: 0x1e242c });
+    const roadLineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const yellowRoadLineMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+    const sidewalkMat = new THREE.MeshLambertMaterial({ color: 0xd4d4d8 });
+    const concreteMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+    const stoneWallMat = new THREE.MeshLambertMaterial({ color: 0x78716c });
+    const waterMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.15, metalness: 0.75, transparent: true, opacity: 0.88 });
+    const brickRedMat = new THREE.MeshLambertMaterial({ color: 0x993d31 });
+    const woodRoofMat = new THREE.MeshLambertMaterial({ color: 0x4a3728 });
+    const roofSlateMat = new THREE.MeshLambertMaterial({ color: 0x3b4754 });
+    const houseWhiteMat = new THREE.MeshLambertMaterial({ color: 0xf8fafc });
+    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5c4033 });
+    const foliageMat = new THREE.MeshLambertMaterial({ color: 0x2d6e27 });
+    const carColors = [0x1e3a8a, 0x991b1b, 0x14532d, 0xd97706, 0x334155, 0x475569];
+
+    // Interactive Object Registry for Raycasting
+    const interactiveObjects = [];
+    function registerInteractive(obj, zoneId) {
+      obj.userData = { zoneId: zoneId };
+      interactiveObjects.push(obj);
+      obj.traverse(child => {
+        if (child.isMesh) {
+          child.userData = { zoneId: zoneId };
+          child.castShadow = true;
+          child.receiveShadow = true;
+          interactiveObjects.push(child);
+        }
+      });
+    }
+
+    /* ---------------------------------------------------------------------
+       A. GROUND TERRAIN & COMPLEX ROAD NETWORK (MULTIPLE INTERCONNECTED WAYS)
+       --------------------------------------------------------------------- */
+    // Sprawling City Ground (380m x 420m)
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(380, 420), grassMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Farmland / Greenbelt Perimeter (480m x 520m)
+    const greenbelt = new THREE.Mesh(new THREE.RingGeometry(180, 260, 36), darkGrassMat);
+    greenbelt.rotation.x = -Math.PI / 2;
+    greenbelt.position.y = -0.05;
+    greenbelt.receiveShadow = true;
+    scene.add(greenbelt);
+
+    // 1. Regional 4-Lane Arterial Highway (Z = -180, Width = 20m, Length = 360m)
+    const highwayGroup = new THREE.Group();
+    const highwayMesh = new THREE.Mesh(new THREE.PlaneGeometry(360, 20), highwayAsphaltMat);
+    highwayMesh.rotation.x = -Math.PI / 2;
+    highwayMesh.position.set(0, 0.05, -180);
+    highwayMesh.receiveShadow = true;
+    highwayGroup.add(highwayMesh);
+
+    // Highway Green Median
+    const hwMedian = new THREE.Mesh(new THREE.PlaneGeometry(360, 2.5), darkGrassMat);
+    hwMedian.rotation.x = -Math.PI / 2;
+    hwMedian.position.set(0, 0.08, -180);
+    highwayGroup.add(hwMedian);
+
+    // Highway Stripes
+    for (let x = -170; x <= 170; x += 10) {
+      const l1 = new THREE.Mesh(new THREE.PlaneGeometry(5, 0.4), roadLineMat);
+      l1.rotation.x = -Math.PI / 2;
+      l1.position.set(x, 0.09, -185);
+      highwayGroup.add(l1);
+
+      const l2 = new THREE.Mesh(new THREE.PlaneGeometry(5, 0.4), roadLineMat);
+      l2.rotation.x = -Math.PI / 2;
+      l2.position.set(x, 0.09, -175);
+      highwayGroup.add(l2);
+    }
+
+    // Overhead Highway Green Guide Sign: "HIGHWAY 25 → TO DOWNTOWN / CENTRAL CITY"
+    const signTex = makeCanvasTexture(512, 128, (ctx, w, h) => {
+      ctx.fillStyle = '#15803d';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(6, 6, w - 12, h - 12);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 32px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('STATE HWY 25 EAST', w / 2, 48);
+      ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('→ TO CENTRAL CITY / DOWNTOWN (15 MILES)', w / 2, 92);
+    });
+    const hwSign = new THREE.Mesh(new THREE.PlaneGeometry(18, 4.5), new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide }));
+    hwSign.position.set(0, 8.5, -180);
+    highwayGroup.add(hwSign);
+
+    for (let gx of [-9, 9]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 8.5), new THREE.MeshLambertMaterial({ color: 0x64748b }));
+      post.position.set(gx, 4.25, -180);
+      highwayGroup.add(post);
+    }
+    scene.add(highwayGroup);
+    registerInteractive(highwayGroup, 'central-city-highway');
+
+    // ROAD BUILDER HELPER: Creates interconnected streets with sidewalks & markings
+    function buildStreet(x, z, w, h, hasSidewalk = true, hasCenterLine = true) {
+      const road = new THREE.Mesh(new THREE.PlaneGeometry(w, h), asphaltMat);
+      road.rotation.x = -Math.PI / 2;
+      road.position.set(x, 0.04, z);
+      road.receiveShadow = true;
+      scene.add(road);
+
+      // Yellow Center Lines
+      if (hasCenterLine) {
+        if (w > h) {
+          const centerLine = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.3), yellowRoadLineMat);
+          centerLine.rotation.x = -Math.PI / 2;
+          centerLine.position.set(x, 0.05, z);
+          scene.add(centerLine);
+
+          if (hasSidewalk) {
+            const swN = new THREE.Mesh(new THREE.PlaneGeometry(w, 2), sidewalkMat);
+            swN.rotation.x = -Math.PI / 2;
+            swN.position.set(x, 0.06, z - (h / 2 + 1));
+            scene.add(swN);
+
+            const swS = new THREE.Mesh(new THREE.PlaneGeometry(w, 2), sidewalkMat);
+            swS.rotation.x = -Math.PI / 2;
+            swS.position.set(x, 0.06, z + (h / 2 + 1));
+            scene.add(swS);
+          }
+        } else {
+          const centerLine = new THREE.Mesh(new THREE.PlaneGeometry(0.3, h), yellowRoadLineMat);
+          centerLine.rotation.x = -Math.PI / 2;
+          centerLine.position.set(x, 0.05, z);
+          scene.add(centerLine);
+
+          if (hasSidewalk) {
+            const swW = new THREE.Mesh(new THREE.PlaneGeometry(2, h), sidewalkMat);
+            swW.rotation.x = -Math.PI / 2;
+            swW.position.set(x - (w / 2 + 1), 0.06, z);
+            scene.add(swW);
+
+            const swE = new THREE.Mesh(new THREE.PlaneGeometry(2, h), sidewalkMat);
+            swE.rotation.x = -Math.PI / 2;
+            swE.position.set(x + (w / 2 + 1), 0.06, z);
+            scene.add(swE);
+          }
+        }
+      }
+      return road;
+    }
+
+    // HELPER: Crosswalk Zebra Striping at Major Intersections
+    function createCrosswalk(x, z, width = 10, isHorizontal = true) {
+      const cwGroup = new THREE.Group();
+      cwGroup.position.set(x, 0.048, z);
+      const numStripes = 6;
+      for (let i = 0; i < numStripes; i++) {
+        const offset = (i - (numStripes - 1) / 2) * 1.4;
+        const stripe = new THREE.Mesh(
+          isHorizontal ? new THREE.PlaneGeometry(0.6, 3.5) : new THREE.PlaneGeometry(3.5, 0.6),
+          roadLineMat
+        );
+        stripe.rotation.x = -Math.PI / 2;
+        if (isHorizontal) stripe.position.x = offset;
+        else stripe.position.z = offset;
+        cwGroup.add(stripe);
+      }
+      scene.add(cwGroup);
+    }
+
+    // =====================================================================
+    // COMPLEX, SEAMLESSLY CONNECTED ROAD NETWORK (NO DISCONNECTS, NO DEAD ENDS)
+    // =====================================================================
+
+    // 1. GRANDVILLE BOULEVARD (MAIN CENTRAL SPINE):
+    // Stops before Central Park at z = 25 and resumes south of park at z = 75
+    // North Spine: from Highway Connection (z = -170) down to Veterans Parkway (z = 25)
+    buildStreet(0, -72.5, 14, 195, false);
+    const gvMedianNorth = new THREE.Mesh(new THREE.PlaneGeometry(2, 195), darkGrassMat);
+    gvMedianNorth.rotation.x = -Math.PI / 2;
+    gvMedianNorth.position.set(0, 0.07, -72.5);
+    scene.add(gvMedianNorth);
+
+    // South Spine: from Lincoln Boulevard (z = 75) down to Roosevelt Ave south edge (z = 150)
+    buildStreet(0, 112.5, 14, 75, false);
+    const gvMedianSouth = new THREE.Mesh(new THREE.PlaneGeometry(2, 75), darkGrassMat);
+    gvMedianSouth.rotation.x = -Math.PI / 2;
+    gvMedianSouth.position.set(0, 0.07, 112.5);
+    scene.add(gvMedianSouth);
+
+    // 2. PARK PERIMETER DRIVES (CARRY TRAFFIC SAFELY AROUND CENTRAL PARK BETWEEN Z=25 AND Z=75):
+    // West Park Drive & East Park Drive flank the park and connect Veterans Pkwy to Lincoln Blvd
+    buildStreet(-26, 50, 8.5, 50, true);
+    buildStreet(26, 50, 8.5, 50, true);
+
+    // 3. NORTH-SOUTH CROSS AVENUES (CONTINUOUS FROM Z = -65 DOWN TO Z = 145):
+    buildStreet(-100, 40, 9, 210);  // West End Avenue
+    buildStreet(-50, 40, 8.5, 210);  // Maple Avenue
+    buildStreet(50, 40, 8.5, 210);   // Oak Avenue
+    buildStreet(100, 40, 9, 210);   // East End Avenue
+
+    // 4. MAJOR EAST-WEST ARTERIALS (CONTINUOUS FROM X = -135 TO X = +135):
+    buildStreet(0, -65, 270, 14); // Broadway / Commercial Main Street
+    buildStreet(0, -15, 270, 12); // Civic Way
+    buildStreet(0, 25, 270, 10);  // Veterans Parkway
+    buildStreet(0, 75, 270, 9.5); // Lincoln Boulevard
+    buildStreet(0, 125, 270, 8.5);// Roosevelt Avenue
+
+    // 5. RESIDENTIAL CROSS-STREETS & ALLEYS (ALL CONNECT COMPLETELY TO CUL-DE-SACS):
+    // Row 1 at Z = 0 (West connects -120 cul-de-sac to 0 Grandville Blvd; East connects 0 to 120 cul-de-sac):
+    buildStreet(-60, 0, 120, 7.5);
+    buildStreet(60, 0, 120, 7.5);
+
+    // Row 2 at Z = 50 (West connects -120 cul-de-sac to -26 West Park Drive; East connects 26 East Park Drive to 120 cul-de-sac):
+    buildStreet(-73, 50, 94, 7.5);
+    buildStreet(73, 50, 94, 7.5);
+
+    // Row 3 at Z = 100 (West connects -120 cul-de-sac to 0 Grandville Blvd; East connects 0 to 120 cul-de-sac):
+    buildStreet(-60, 100, 120, 7.5);
+    buildStreet(60, 100, 120, 7.5);
+
+    // 6. CUL-DE-SACS WITH CONCRETE CURB EDGES (SEAMLESSLY TERMINATING RESIDENTIAL STREETS):
+    function buildCulDeSac(x, z, r = 9) {
+      const curb = new THREE.Mesh(new THREE.CircleGeometry(r + 0.8, 24), concreteMat);
+      curb.rotation.x = -Math.PI / 2;
+      curb.position.set(x, 0.042, z);
+      scene.add(curb);
+
+      const circle = new THREE.Mesh(new THREE.CircleGeometry(r, 24), asphaltMat);
+      circle.rotation.x = -Math.PI / 2;
+      circle.position.set(x, 0.046, z);
+      scene.add(circle);
+    }
+    buildCulDeSac(-120, 0);
+    buildCulDeSac(-120, 50);
+    buildCulDeSac(-120, 100);
+    buildCulDeSac(120, 0);
+    buildCulDeSac(120, 50);
+    buildCulDeSac(120, 100);
+
+    // 7. PEDESTRIAN CROSSWALKS AT KEY INTERSECTIONS:
+    createCrosswalk(0, -56, 12, true);  // Broadway & Grandville Blvd North
+    createCrosswalk(0, -74, 12, true);  // Broadway & Grandville Blvd South
+    createCrosswalk(-8, -65, 12, false);
+    createCrosswalk(8, -65, 12, false);
+
+    createCrosswalk(0, -7, 10, true);   // Civic Way & Grandville Blvd
+    createCrosswalk(0, -23, 10, true);
+    createCrosswalk(-7, -15, 10, false);
+    createCrosswalk(7, -15, 10, false);
+
+    createCrosswalk(-26, 19, 8, true);  // Veterans Pkwy & West Park Drive
+    createCrosswalk(26, 19, 8, true);   // Veterans Pkwy & East Park Drive
+    createCrosswalk(-26, 81, 8, true);  // Lincoln Blvd & West Park Drive
+    createCrosswalk(26, 81, 8, true);   // Lincoln Blvd & East Park Drive
+
+    /* ---------------------------------------------------------------------
+       B. 🚩 MONUMENTAL ENTRANCE ARCH: "WELCOME TO GRANDVILLE"
+       --------------------------------------------------------------------- */
+    const welcomeGroup = new THREE.Group();
+    welcomeGroup.position.set(0, 0, -115);
+
+    for (let px of [-9, 9]) {
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(2.4, 8, 2.4), concreteMat);
+      pillar.position.set(px, 4, 0);
+      pillar.castShadow = true;
+      welcomeGroup.add(pillar);
+
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.8, 2.8), concreteMat);
+      cap.position.set(px, 8.4, 0);
+      welcomeGroup.add(cap);
+
+      const globe = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+      globe.position.set(px, 9.1, 0);
+      welcomeGroup.add(globe);
+    }
+
+    const welcomeBannerTex = makeCanvasTexture(1024, 256, (ctx, w, h) => {
+      ctx.fillStyle = '#1e3a8a';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 14;
+      ctx.strokeRect(10, 10, w - 20, h - 20);
+
+      ctx.fillStyle = '#fef08a';
+      ctx.font = 'bold 54px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('★ WELCOME TO GRANDVILLE ★', w / 2, 90);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 28px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('A Welcoming Community for All Races and Religions', w / 2, 150);
+
+      ctx.fillStyle = '#93c5fd';
+      ctx.font = '22px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('Established 1948 • Urban Planners: Bill, Ethan & Jayen', w / 2, 205);
+    });
+    const welcomeBanner = new THREE.Mesh(new THREE.PlaneGeometry(18, 4.5), new THREE.MeshBasicMaterial({ map: welcomeBannerTex, side: THREE.DoubleSide }));
+    welcomeBanner.position.set(0, 7.5, 0);
+    welcomeGroup.add(welcomeBanner);
+
+    scene.add(welcomeGroup);
+    registerInteractive(welcomeGroup, 'welcome-arch');
+
+    /* ---------------------------------------------------------------------
+       C. 🚆 COMMUTER TRAIN TERMINAL (ULTRA-DETAILED ARCHITECTURE & TRAIN)
+       --------------------------------------------------------------------- */
+    const trainStationGroup = new THREE.Group();
+    trainStationGroup.position.set(50, 0, -155);
+
+    // Ballast Bed & Dual Tracks
+    const ballast = new THREE.Mesh(new THREE.BoxGeometry(360, 0.3, 10), new THREE.MeshLambertMaterial({ color: 0x475569 }));
+    ballast.position.set(-50, 0.15, 0);
+    trainStationGroup.add(ballast);
+
+    // Wooden Ties
+    for (let rx = -220; rx <= 120; rx += 2.5) {
+      const tie = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 8), woodRoofMat);
+      tie.position.set(rx, 0.35, 0);
+      trainStationGroup.add(tie);
+    }
+    // Rails
+    for (let rz of [-2.5, -1.0, 1.0, 2.5]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(360, 0.25, 0.25), new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8 }));
+      rail.position.set(-50, 0.5, rz);
+      trainStationGroup.add(rail);
+    }
+
+    // Concrete Passenger Platform (Length 75m, Width 9m)
+    const platform = new THREE.Mesh(new THREE.BoxGeometry(75, 1.2, 9), concreteMat);
+    platform.position.set(0, 0.6, 9.5);
+    platform.castShadow = true;
+    trainStationGroup.add(platform);
+
+    // Station Main Building (Brick Hall with Hipped Roof & Dormers)
+    const stnBody = new THREE.Mesh(new THREE.BoxGeometry(28, 7.5, 12), brickRedMat);
+    stnBody.position.set(0, 4.35, 16);
+    stnBody.castShadow = true;
+    trainStationGroup.add(stnBody);
+
+    const stnRoof = new THREE.Mesh(new THREE.ConeGeometry(22, 5, 4), roofSlateMat);
+    stnRoof.rotation.y = Math.PI / 4;
+    stnRoof.scale.set(1.1, 1, 0.75);
+    stnRoof.position.set(0, 10.5, 16);
+    stnRoof.castShadow = true;
+    trainStationGroup.add(stnRoof);
+
+    // Station Clock on Front
+    const clockFace = makeCanvasTexture(256, 256, (ctx, w, h) => {
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 10;
+      ctx.strokeRect(5, 5, w - 10, h - 10);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 32px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('GRANDVILLE', w / 2, 70);
+      ctx.fillText('10:15 AM', w / 2, 140);
+      ctx.font = '20px sans-serif';
+      ctx.fillText('CENTRAL RAIL', w / 2, 190);
+    });
+    const clockMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 3.5), new THREE.MeshBasicMaterial({ map: clockFace }));
+    clockMesh.position.set(0, 6.8, 9.9);
+    trainStationGroup.add(clockMesh);
+
+    // Platform Canopy (Shelter with Iron Pillars & Overhang)
+    const canopyRoof = new THREE.Mesh(new THREE.BoxGeometry(60, 0.4, 8), roofSlateMat);
+    canopyRoof.position.set(0, 5.0, 8);
+    trainStationGroup.add(canopyRoof);
+
+    for (let cx of [-25, -15, -5, 5, 15, 25]) {
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 3.8), new THREE.MeshLambertMaterial({ color: 0x1e293b }));
+      pillar.position.set(cx, 3.1, 8);
+      trainStationGroup.add(pillar);
+    }
+
+    // Platform Benches & Luggage Trunks
+    for (let bx of [-18, 0, 18]) {
+      const bench = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.6, 1.0), woodRoofMat);
+      bench.position.set(bx, 1.5, 10);
+      trainStationGroup.add(bench);
+
+      const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 0.8), new THREE.MeshLambertMaterial({ color: 0x78350f }));
+      trunk.position.set(bx + 2.5, 1.6, 10);
+      trainStationGroup.add(trunk);
+    }
+
+    // 1948 STREAMLINER PASSENGER TRAIN (LOCOMOTIVE + 2 COACHES)
+    const streamliner = new THREE.Group();
+    streamliner.position.set(-20, 0, 1.8);
+
+    // Streamliner Diesel/Steam Locomotive (Navy Blue & Silver, Aerodynamic Nose)
+    const locoNose = new THREE.Mesh(new THREE.SphereGeometry(2.0, 16, 16, 0, Math.PI), new THREE.MeshLambertMaterial({ color: 0x1e3a8a }));
+    locoNose.rotation.y = -Math.PI / 2;
+    locoNose.scale.set(1.4, 1.0, 1.0);
+    locoNose.position.set(12, 2.6, 0);
+    streamliner.add(locoNose);
+
+    const locoBody = new THREE.Mesh(new THREE.BoxGeometry(16, 3.8, 3.6), new THREE.MeshLambertMaterial({ color: 0x1e3a8a }));
+    locoBody.position.set(3, 2.6, 0);
+    locoBody.castShadow = true;
+    streamliner.add(locoBody);
+
+    // Locomotive Chrome Grille & Cowcatcher
+    const cowcatcher = new THREE.Mesh(new THREE.ConeGeometry(1.8, 1.4, 4), new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8 }));
+    cowcatcher.rotation.z = Math.PI / 2;
+    cowcatcher.position.set(14, 1.2, 0);
+    streamliner.add(cowcatcher);
+
+    // Glowing Locomotive Headlight
+    const headlight = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 16), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+    headlight.position.set(14.2, 2.6, 0);
+    streamliner.add(headlight);
+
+    // 2 Streamlined Passenger Coaches
+    for (let c = 0; c < 2; c++) {
+      const coach = new THREE.Mesh(new THREE.BoxGeometry(22, 3.8, 3.6), new THREE.MeshLambertMaterial({ color: 0x0284c7 }));
+      coach.position.set(-18 - (c * 24), 2.6, 0);
+      coach.castShadow = true;
+      streamliner.add(coach);
+
+      // Window Rows with Warm Interior Light
+      for (let wx = -8; wx <= 8; wx += 2.8) {
+        const win = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.1), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+        win.position.set(-18 - (c * 24) + wx, 2.8, 1.82);
+        streamliner.add(win);
+      }
+    }
+    trainStationGroup.add(streamliner);
+
+    scene.add(trainStationGroup);
+    registerInteractive(trainStationGroup, 'train-station');
+
+    /* ---------------------------------------------------------------------
+       D. 🏪 DETAILED COMMERCIAL DOWNTOWN (BROADWAY Z = -65)
+       --------------------------------------------------------------------- */
+    // 1. TAILOR SHOP (2-Story Brick, Tailor Displays, Striped Awning, Mannequins)
+    const tailorGroup = new THREE.Group();
+    tailorGroup.position.set(-35, 0, -65);
+
+    const tailorBody = new THREE.Mesh(new THREE.BoxGeometry(14, 7.5, 12), brickRedMat);
+    tailorBody.position.y = 3.75;
+    tailorBody.castShadow = true;
+    tailorGroup.add(tailorBody);
+
+    // Storefront Lower Wood Trim
+    const tailorFront = new THREE.Mesh(new THREE.BoxGeometry(14.2, 3.6, 0.4), woodRoofMat);
+    tailorFront.position.set(0, 1.8, 6.1);
+    tailorGroup.add(tailorFront);
+
+    // Display Bay Windows with Mannequins wearing suits!
+    for (let wx of [-3.8, 3.8]) {
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2.4), new THREE.MeshBasicMaterial({ color: 0xbae6fd }));
+      win.position.set(wx, 2.0, 6.35);
+      tailorGroup.add(win);
+
+      // 3D Suit Mannequin Silhouette inside window
+      const manqTorso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.4), new THREE.MeshLambertMaterial({ color: wx > 0 ? 0x1e3a8a : 0x78350f }));
+      manqTorso.position.set(wx, 2.0, 5.8);
+      tailorGroup.add(manqTorso);
+    }
+
+    // Scalloped Awning
+    const tailorAwning = new THREE.Mesh(new THREE.BoxGeometry(14.4, 0.4, 3.0), new THREE.MeshLambertMaterial({ color: 0x059669 }));
+    tailorAwning.position.set(0, 4.0, 7.5);
+    tailorAwning.rotation.x = 0.2;
+    tailorGroup.add(tailorAwning);
+
+    // Gold Lettered Sign
+    const tailorSignTex = makeCanvasTexture(512, 128, (ctx, w, h) => {
+      ctx.fillStyle = '#064e3b';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(4, 4, w - 8, h - 8);
+      ctx.fillStyle = '#fef08a';
+      ctx.font = 'bold 36px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('✂️ GRANDVILLE CUSTOM TAILOR', w / 2, 54);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('Fine Men’s Suits, Ladies’ Dresses & Dry Cleaning', w / 2, 95);
+    });
+    const tailorSign = new THREE.Mesh(new THREE.PlaneGeometry(12, 3), new THREE.MeshBasicMaterial({ map: tailorSignTex }));
+    tailorSign.position.set(0, 5.8, 6.1);
+    tailorGroup.add(tailorSign);
+
+    scene.add(tailorGroup);
+    registerInteractive(tailorGroup, 'tailor-shop');
+
+    // 2. GRAND UNION SUPERMARKET & GROCERY STORE (Produce Bins, Art Deco)
+    const groceryGroup = new THREE.Group();
+    groceryGroup.position.set(38, 0, -65);
+
+    const gBody = new THREE.Mesh(new THREE.BoxGeometry(22, 8, 16), brickRedMat);
+    gBody.position.y = 4.0;
+    gBody.castShadow = true;
+    groceryGroup.add(gBody);
+
+    // Large Red Grocery Sign
+    const gSignTex = makeCanvasTexture(512, 128, (ctx, w, h) => {
+      ctx.fillStyle = '#b91c1c';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(4, 4, w - 8, h - 8);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 38px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🛒 GRAND UNION SUPERMARKET', w / 2, 54);
+      ctx.fillStyle = '#fef08a';
+      ctx.font = 'bold 22px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('Fresh Produce, Prime Meats & Dairy • Est. 1948', w / 2, 96);
+    });
+    const gSign = new THREE.Mesh(new THREE.PlaneGeometry(18, 3.8), new THREE.MeshBasicMaterial({ map: gSignTex }));
+    gSign.position.set(0, 7.2, 8.1);
+    groceryGroup.add(gSign);
+
+    // Outdoor Sidewalk Produce Crates (Apples & Oranges)
+    for (let px of [-7, -4, 4, 7]) {
+      const crate = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.2, 1.5), woodRoofMat);
+      crate.position.set(px, 0.6, 9.2);
+      groceryGroup.add(crate);
+
+      const fruitColor = px < 0 ? 0xdc2626 : 0xf97316; // Apples vs Oranges
+      const produce = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.4, 1.3), new THREE.MeshLambertMaterial({ color: fruitColor }));
+      produce.position.set(px, 1.3, 9.2);
+      groceryGroup.add(produce);
+    }
+    scene.add(groceryGroup);
+    registerInteractive(groceryGroup, 'grocery-store');
+
+    // 3. THE GRANDVILLE TAVERN & PUB (Tudor Timber, Beer Garden, Swinging Sign)
+    const pubGroup = new THREE.Group();
+    pubGroup.position.set(-65, 0, -65);
+
+    // Half-Timbered Plaster Facade
+    const pubBody = new THREE.Mesh(new THREE.BoxGeometry(16, 7.5, 13), houseWhiteMat);
+    pubBody.position.y = 3.75;
+    pubBody.castShadow = true;
+    pubGroup.add(pubBody);
+
+    // Exposed Timber Beams
+    for (let ty = 1.8; ty <= 6.5; ty += 2.2) {
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(16.1, 0.35, 0.2), woodRoofMat);
+      beam.position.set(0, ty, 6.55);
+      pubGroup.add(beam);
+    }
+    for (let tx of [-6, -2, 2, 6]) {
+      const vBeam = new THREE.Mesh(new THREE.BoxGeometry(0.35, 7.5, 0.2), woodRoofMat);
+      vBeam.position.set(tx, 3.75, 6.55);
+      pubGroup.add(vBeam);
+    }
+
+    // Swinging Pub Sign on Iron Post
+    const pubSignTex = makeCanvasTexture(256, 256, (ctx, w, h) => {
+      ctx.fillStyle = '#451a03';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 10;
+      ctx.strokeRect(6, 6, w - 12, h - 12);
+      ctx.fillStyle = '#fef08a';
+      ctx.font = 'bold 36px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('THE', w / 2, 65);
+      ctx.fillText('GRANDVILLE', w / 2, 115);
+      ctx.fillText('TAVERN', w / 2, 165);
+      ctx.font = '40px sans-serif';
+      ctx.fillText('🍺', w / 2, 220);
+    });
+    const pubSign = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 3.0), new THREE.MeshBasicMaterial({ map: pubSignTex, side: THREE.DoubleSide }));
+    pubSign.position.set(-7.5, 4.2, 7.8);
+    pubGroup.add(pubSign);
+
+    // Outdoor Beer Garden Tables & Benches
+    for (let bx of [-4, 4]) {
+      const table = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.8, 1.8), woodRoofMat);
+      table.position.set(bx, 0.8, 9.5);
+      pubGroup.add(table);
+
+      // Beer Steins
+      const stein = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.3), new THREE.MeshLambertMaterial({ color: 0xfef08a }));
+      stein.position.set(bx, 1.35, 9.5);
+      pubGroup.add(stein);
+    }
+    scene.add(pubGroup);
+    registerInteractive(pubGroup, 'tavern-pub');
+
+    // 4. THE 3 LOCAL SHOPS (Hardware, Pharmacy, Bakery)
+    function createStorefront(x, z, name, color, signText, subText, icon, zoneId) {
+      const bGroup = new THREE.Group();
+      bGroup.position.set(x, 0, z);
+
+      const body = new THREE.Mesh(new THREE.BoxGeometry(14, 6.5, 12), new THREE.MeshLambertMaterial({ color: color }));
+      body.position.y = 3.25;
+      body.castShadow = true;
+      body.receiveShadow = true;
+      bGroup.add(body);
+
+      // Windows & Door
+      const winMat = new THREE.MeshBasicMaterial({ color: 0xbae6fd });
+      for (let wx of [-3.5, 3.5]) {
+        const win = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 2.5), winMat);
+        win.position.set(wx, 2.2, 6.05);
+        bGroup.add(win);
+      }
+      const door = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 3.0), woodRoofMat);
+      door.position.set(0, 1.5, 6.05);
+      bGroup.add(door);
+
+      const awning = new THREE.Mesh(new THREE.BoxGeometry(14.2, 0.4, 2.5), new THREE.MeshLambertMaterial({ color: 0xdc2626 }));
+      awning.position.set(0, 4.0, 7.2);
+      awning.rotation.x = 0.2;
+      bGroup.add(awning);
+
+      const sTex = makeCanvasTexture(512, 128, (ctx, w, h) => {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 6;
+        ctx.strokeRect(4, 4, w - 8, h - 8);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 36px "Space Grotesk", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${icon} ${signText}`, w / 2, 54);
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
+        ctx.fillText(subText, w / 2, 95);
+      });
+      const signMesh = new THREE.Mesh(new THREE.PlaneGeometry(12, 3), new THREE.MeshBasicMaterial({ map: sTex }));
+      signMesh.position.set(0, 5.5, 6.1);
+      bGroup.add(signMesh);
+
+      scene.add(bGroup);
+      registerInteractive(bGroup, zoneId);
+      return bGroup;
+    }
+    createStorefront(68, -65, 'Hardware Store', 0xfef08a, 'HARDWARE & SUPPLY', 'Tools, Paint & Home Goods', '🔨', 'hardware-shop');
+    createStorefront(-15, -65, 'Pharmacy', 0xe0e7ff, 'CORNER PHARMACY', 'Prescriptions & Soda Fountain', '💊', 'pharmacy-shop');
+    createStorefront(15, -65, 'Bakery', 0xfef3c7, 'GRANDVILLE BAKERY', 'Fresh Bread, Pies & Pastries', '🥖', 'bakery-shop');
+
+    // 5. SERVICE STATION (Texaco/Mobilgas Streamline with Dual Glass Pumps & Repair Bay)
+    const gasGroup = new THREE.Group();
+    gasGroup.position.set(-105, 0, -65);
+
+    // Concrete Slab Foundation
+    const gasSlab = new THREE.Mesh(new THREE.BoxGeometry(20, 0.3, 22), concreteMat);
+    gasSlab.position.set(0, 0.15, 3);
+    gasGroup.add(gasSlab);
+
+    // Main Streamline Moderne Service Garage Body (White porcelain enamel with speed stripes)
+    const gasGarageBody = new THREE.Mesh(new THREE.BoxGeometry(16, 5.8, 12), houseWhiteMat);
+    gasGarageBody.position.set(0, 2.9, 0);
+    gasGarageBody.castShadow = true;
+    gasGarageBody.receiveShadow = true;
+    gasGroup.add(gasGarageBody);
+
+    // Streamline Racing Speed Stripes (Red & Emerald Green)
+    const stripeR = new THREE.Mesh(new THREE.PlaneGeometry(16.1, 0.3), new THREE.MeshLambertMaterial({ color: 0xdc2626 }));
+    stripeR.position.set(0, 4.8, 6.02);
+    gasGroup.add(stripeR);
+    const stripeG = new THREE.Mesh(new THREE.PlaneGeometry(16.1, 0.3), new THREE.MeshLambertMaterial({ color: 0x059669 }));
+    stripeG.position.set(0, 4.4, 6.02);
+    gasGroup.add(stripeG);
+
+    // Rounded Art-Deco Parapet Roof Cap
+    const roofCap = new THREE.Mesh(new THREE.BoxGeometry(16.6, 0.5, 12.6), new THREE.MeshLambertMaterial({ color: 0x334155 }));
+    roofCap.position.set(0, 5.9, 0);
+    gasGroup.add(roofCap);
+
+    // Two Large Overhead Roll-Up Repair Bay Doors
+    for (let bx of [-4.2, 1.8]) {
+      const bayFrame = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 4.4), new THREE.MeshLambertMaterial({ color: 0x1e293b }));
+      bayFrame.position.set(bx, 2.2, 6.03);
+      gasGroup.add(bayFrame);
+
+      // Glass Panes on Upper Row of Garage Door
+      const bayWin = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 0.9), new THREE.MeshBasicMaterial({ color: 0xbae6fd }));
+      bayWin.position.set(bx, 3.4, 6.04);
+      gasGroup.add(bayWin);
+    }
+
+    // Customer Service Office & Showroom (East side) with Curved Glass Corner
+    const officeWin = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 2.8), new THREE.MeshBasicMaterial({ color: 0x93c5fd }));
+    officeWin.position.set(6.2, 2.2, 6.03);
+    gasGroup.add(officeWin);
+    const officeDoor = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 3.0), woodRoofMat);
+    officeDoor.position.set(6.2, 1.5, 6.04);
+    gasGroup.add(officeDoor);
+
+    // Station Facade Sign (Canvas Texture)
+    const gasSignTex = makeCanvasTexture(512, 128, (ctx, w, h) => {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(0, 0, w, 14);
+      ctx.fillRect(0, h - 14, w, 14);
+      ctx.font = 'bold 36px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⛽ GRANDVILLE MOTOR SERVICE', w / 2, 58);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('MOBILGAS • TIRES & LUBRICATION • OPEN 24 HOURS', w / 2, 94);
+    });
+    const gasSign = new THREE.Mesh(new THREE.PlaneGeometry(14, 2.6), new THREE.MeshBasicMaterial({ map: gasSignTex }));
+    gasSign.position.set(0, 6.8, 6.05);
+    gasGroup.add(gasSign);
+
+    // Gas Pump Island (Raised Concrete Platform)
+    const island = new THREE.Mesh(new THREE.BoxGeometry(11, 0.4, 3.2), concreteMat);
+    island.position.set(0, 0.2, 10.5);
+    gasGroup.add(island);
+
+    // Overhead Streamline Canopy
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(14, 0.6, 6.5), new THREE.MeshLambertMaterial({ color: 0xdc2626 }));
+    canopy.position.set(0, 5.2, 10.5);
+    gasGroup.add(canopy);
+    for (let cx of [-5.2, 5.2]) {
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 5.0), concreteMat);
+      p.position.set(cx, 2.6, 10.5);
+      gasGroup.add(p);
+    }
+
+    // Vintage 1948 Dual Glass Globe Pumps (Regular & Ethyl Hi-Octane)
+    for (let px of [-2.8, 2.8]) {
+      const pumpBody = new THREE.Mesh(new THREE.BoxGeometry(1.0, 2.2, 0.9), new THREE.MeshLambertMaterial({ color: px < 0 ? 0xdc2626 : 0x0284c7 }));
+      pumpBody.position.set(px, 1.4, 10.5);
+      pumpBody.castShadow = true;
+      gasGroup.add(pumpBody);
+
+      // Glass illuminated globe on top
+      const globe = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+      globe.position.set(px, 2.8, 10.5);
+      gasGroup.add(globe);
+
+      // Flexible black fuel hose & nozzle
+      const hose = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.6), new THREE.MeshBasicMaterial({ color: 0x0f172a }));
+      hose.position.set(px + 0.55, 1.3, 10.5);
+      gasGroup.add(hose);
+    }
+
+    // Tire Stacks & Oil Drum Racks
+    for (let i = 0; i < 4; i++) {
+      const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, 0.32, 14), asphaltMat);
+      tire.position.set(-6.5, 0.16 + (i * 0.32), 4.5);
+      gasGroup.add(tire);
+    }
+    const oilDrum = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.2, 14), new THREE.MeshLambertMaterial({ color: 0x16a34a }));
+    oilDrum.position.set(-5.2, 0.6, 4.5);
+    gasGroup.add(oilDrum);
+
+    scene.add(gasGroup);
+    registerInteractive(gasGroup, 'service-station');
+
+    // 6. LIGHT COMMERCIAL WORKSHOPS & DEPOT (Lumber, Fuel Oil & Contractors Yard)
+    const lightCommGroup = new THREE.Group();
+    lightCommGroup.position.set(105, 0, -65);
+
+    // Lower Brick Stem Wall & Upper Corrugated Industrial Steel Siding
+    const commBase = new THREE.Mesh(new THREE.BoxGeometry(20, 2.2, 14), brickRedMat);
+    commBase.position.set(0, 1.1, 0);
+    commBase.castShadow = true;
+    lightCommGroup.add(commBase);
+
+    const commUpper = new THREE.Mesh(new THREE.BoxGeometry(19.8, 5.0, 13.8), new THREE.MeshLambertMaterial({ color: 0x334155 }));
+    commUpper.position.set(0, 4.7, 0);
+    commUpper.castShadow = true;
+    lightCommGroup.add(commUpper);
+
+    // Gabled Industrial Roof with 2 Monitor Skylight Vents
+    const lightRoof = new THREE.Mesh(new THREE.ConeGeometry(14.5, 3.5, 4), roofSlateMat);
+    lightRoof.rotation.y = Math.PI / 4;
+    lightRoof.scale.set(1.15, 1.0, 0.85);
+    lightRoof.position.set(0, 8.8, 0);
+    lightCommGroup.add(lightRoof);
+
+    for (let mx of [-4, 4]) {
+      const monitor = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.2, 4.5), new THREE.MeshLambertMaterial({ color: 0x475569 }));
+      monitor.position.set(mx, 9.6, 0);
+      lightCommGroup.add(monitor);
+    }
+
+    // Multi-Pane Factory Steel-Sash Windows
+    for (let wx of [-6.5, 6.5]) {
+      const fWin = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 2.5), new THREE.MeshBasicMaterial({ color: 0xbae6fd }));
+      fWin.position.set(wx, 4.8, 6.95);
+      lightCommGroup.add(fWin);
+    }
+
+    // Heavy Concrete Loading Dock with Wood Bumper Beams
+    const dock = new THREE.Mesh(new THREE.BoxGeometry(12, 1.2, 4.0), concreteMat);
+    dock.position.set(0, 0.6, 8.8);
+    lightCommGroup.add(dock);
+    const dockBumper = new THREE.Mesh(new THREE.BoxGeometry(12.2, 0.3, 0.3), woodRoofMat);
+    dockBumper.position.set(0, 1.1, 10.8);
+    lightCommGroup.add(dockBumper);
+
+    // Roll-up Industrial Steel Cargo Door
+    const bayDoor = new THREE.Mesh(new THREE.PlaneGeometry(6.5, 4.8), new THREE.MeshLambertMaterial({ color: 0x1e293b }));
+    bayDoor.position.set(0, 3.6, 6.95);
+    lightCommGroup.add(bayDoor);
+
+    // Stacked Lumber Pallets & Freight Crates on Dock
+    for (let lz of [7.8, 9.2]) {
+      const lumber = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.9, 1.2), woodRoofMat);
+      lumber.position.set(-3.5, 1.65, lz);
+      lightCommGroup.add(lumber);
+    }
+    const crate1 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 1.4), new THREE.MeshLambertMaterial({ color: 0x78350f }));
+    crate1.position.set(3.8, 1.9, 8.5);
+    lightCommGroup.add(crate1);
+
+    // Commercial Signboard
+    const lightSignTex = makeCanvasTexture(512, 128, (ctx, w, h) => {
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(4, 4, w - 8, h - 8);
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 32px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('📦 GRANDVILLE BUILDERS SUPPLY & DEPOT', w / 2, 54);
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = 'bold 19px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('LUMBER • FEED & COAL • FREIGHT STORAGE • EST. 1948', w / 2, 94);
+    });
+    const lightSign = new THREE.Mesh(new THREE.PlaneGeometry(16, 3.0), new THREE.MeshBasicMaterial({ map: lightSignTex }));
+    lightSign.position.set(0, 7.5, 7.0);
+    lightCommGroup.add(lightSign);
+
+    // Vintage 1948 Stake-Bed Delivery Flatbed Truck Parked at Dock
+    const truck = new THREE.Group();
+    truck.position.set(1.5, 0, 14.5);
+    const truckCab = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.8, 2.5), new THREE.MeshLambertMaterial({ color: 0x15803d }));
+    truckCab.position.set(0, 1.3, 2.0);
+    truckCab.castShadow = true;
+    truck.add(truckCab);
+    const truckBed = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.4, 4.2), woodRoofMat);
+    truckBed.position.set(0, 1.0, -1.0);
+    truck.add(truckBed);
+    for (let tx of [-1.2, 1.2]) {
+      for (let tz of [-2.0, 1.8]) {
+        const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.28, 14), asphaltMat);
+        wh.rotation.z = Math.PI / 2;
+        wh.position.set(tx, 0.42, tz);
+        truck.add(wh);
+      }
+    }
+    lightCommGroup.add(truck);
+
+    scene.add(lightCommGroup);
+    registerInteractive(lightCommGroup, 'light-commercial');
+
+    /* ---------------------------------------------------------------------
+       E. 🏡 VETERANS HOUSING (STANDARDIZED "COOKIE-CUTTER" SUBURB ~1,000 POP)
+       --------------------------------------------------------------------- */
+    const veteransGroup = new THREE.Group();
+
+    // Standardized Cape Cod with Porch, Shutters, Clothesline
+    function createCookieCutterHome(x, z, rotY = 0) {
+      const hGroup = new THREE.Group();
+      hGroup.position.set(x, 0, z);
+      hGroup.rotation.y = rotY;
+
+      // Slab Foundation
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.3, 7.5), concreteMat);
+      slab.position.y = 0.15;
+      hGroup.add(slab);
+
+      // White Siding Body
+      const walls = new THREE.Mesh(new THREE.BoxGeometry(8.0, 3.6, 7.0), houseWhiteMat);
+      walls.position.y = 1.95;
+      walls.castShadow = true;
+      walls.receiveShadow = true;
+      hGroup.add(walls);
+
+      // Gabled Slate Roof
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(6.6, 3.0, 4), roofSlateMat);
+      roof.rotation.y = Math.PI / 4;
+      roof.scale.set(1.15, 1.0, 0.95);
+      roof.position.y = 5.1;
+      roof.castShadow = true;
+      hGroup.add(roof);
+
+      // Chimney with Terracotta Flue Pot
+      const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.2, 0.8), brickRedMat);
+      chimney.position.set(2.4, 5.2, 0);
+      chimney.castShadow = true;
+      hGroup.add(chimney);
+
+      // Front Porch with White Columns
+      const porch = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.3, 1.4), concreteMat);
+      porch.position.set(0, 0.15, 4.2);
+      hGroup.add(porch);
+      for (let px of [-1.3, 1.3]) {
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.4), houseWhiteMat);
+        col.position.set(px, 1.35, 4.5);
+        hGroup.add(col);
+      }
+
+      // Front Door
+      const door = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.1), woodRoofMat);
+      door.position.set(0, 1.2, 3.55);
+      hGroup.add(door);
+
+      // Windows with Colorful Shutters (Green / Navy)
+      for (let wx of [-2.4, 2.4]) {
+        const win = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4), new THREE.MeshBasicMaterial({ color: 0x93c5fd }));
+        win.position.set(wx, 2.2, 3.55);
+        hGroup.add(win);
+
+        const shutter = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 1.4), new THREE.MeshLambertMaterial({ color: 0x065f46 }));
+        shutter.position.set(wx - 0.9, 2.2, 3.56);
+        hGroup.add(shutter);
+        const shutter2 = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 1.4), new THREE.MeshLambertMaterial({ color: 0x065f46 }));
+        shutter2.position.set(wx + 0.9, 2.2, 3.56);
+        hGroup.add(shutter2);
+      }
+
+      // Driveway & Vintage Car
+      const driveway = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 9), concreteMat);
+      driveway.rotation.x = -Math.PI / 2;
+      driveway.position.set(5.5, 0.05, 1.5);
+      hGroup.add(driveway);
+
+      if (Math.random() > 0.25) {
+        const car = createVintageCar(x + (Math.cos(rotY) * 5.5), z + (Math.sin(rotY) * 5.5), rotY);
+        veteransGroup.add(car);
+      }
+
+      // Backyard Rotary Clothesline with Hanging Laundry Sheets
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.2), concreteMat);
+      pole.position.set(-2, 1.1, -5.5);
+      hGroup.add(pole);
+
+      const laundry = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.8), houseWhiteMat);
+      laundry.position.set(-2, 1.5, -5.5);
+      hGroup.add(laundry);
+
+      return hGroup;
+    }
+
+    function createVintageCar(x, z, rotY = 0) {
+      const car = new THREE.Group();
+      car.position.set(x, 0, z);
+      car.rotation.y = rotY;
+
+      const randomMat = new THREE.MeshLambertMaterial({ color: carColors[Math.floor(Math.random() * carColors.length)] });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.1, 4.6), randomMat);
+      body.position.y = 0.85;
+      body.castShadow = true;
+      car.add(body);
+
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.9, 2.4), new THREE.MeshLambertMaterial({ color: 0x93c5fd }));
+      cabin.position.set(0, 1.7, -0.2);
+      car.add(cabin);
+
+      for (let wx of [-1.15, 1.15]) {
+        for (let wz of [-1.4, 1.4]) {
+          const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.25, 14), asphaltMat);
+          wheel.rotation.z = Math.PI / 2;
+          wheel.position.set(wx, 0.4, wz);
+          car.add(wheel);
+        }
+      }
+      return car;
+    }
+
+    // Generate 50+ Cookie Cutter Houses across residential sectors
+    // West Maple Sector
+    for (let x = -85; x <= -25; x += 15) {
+      veteransGroup.add(createCookieCutterHome(x, 12, 0));
+      veteransGroup.add(createCookieCutterHome(x, 38, Math.PI));
+      veteransGroup.add(createCookieCutterHome(x, 62, 0));
+      veteransGroup.add(createCookieCutterHome(x, 88, Math.PI));
+    }
+    // East Oak Sector
+    for (let x = 25; x <= 85; x += 15) {
+      veteransGroup.add(createCookieCutterHome(x, 12, 0));
+      veteransGroup.add(createCookieCutterHome(x, 38, Math.PI));
+      veteransGroup.add(createCookieCutterHome(x, 62, 0));
+      veteransGroup.add(createCookieCutterHome(x, 88, Math.PI));
+    }
+    // South Roosevelt Sector
+    for (let x = -70; x <= 70; x += 20) {
+      if (Math.abs(x) > 10) {
+        veteransGroup.add(createCookieCutterHome(x, 112, 0));
+        veteransGroup.add(createCookieCutterHome(x, 138, Math.PI));
+      }
+    }
+    scene.add(veteransGroup);
+    registerInteractive(veteransGroup, 'veterans-west');
+
+    /* ---------------------------------------------------------------------
+       F. 🏫 CIVIC CORE: SCHOOL, CHURCH, COMMUNITY CENTRE & CLINIC
+       --------------------------------------------------------------------- */
+    // 1. Grandville Memorial School (Elementary & High)
+    const schoolGroup = new THREE.Group();
+    schoolGroup.position.set(75, 0, -15);
+
+    // Stone Water Table Foundation
+    const schoolBase = new THREE.Mesh(new THREE.BoxGeometry(30, 0.5, 16), concreteMat);
+    schoolBase.position.y = 0.25;
+    schoolGroup.add(schoolBase);
+
+    // Red Brick Two-Story Schoolhouse Body
+    const schoolMain = new THREE.Mesh(new THREE.BoxGeometry(28, 8.5, 14), brickRedMat);
+    schoolMain.position.y = 4.5;
+    schoolMain.castShadow = true;
+    schoolGroup.add(schoolMain);
+
+    // Multi-Pane Classroom Windows across both floors
+    for (let floor of [3.2, 6.5]) {
+      for (let wx of [-11, -8, -5, 5, 8, 11]) {
+        const win = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 2.0), new THREE.MeshBasicMaterial({ color: 0xbae6fd }));
+        win.position.set(wx, floor, 7.05);
+        schoolGroup.add(win);
+        const sill = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.15, 0.25), concreteMat);
+        sill.position.set(wx, floor - 1.05, 7.1);
+        schoolGroup.add(sill);
+      }
+    }
+
+    // Front Classical Portico with 4 White Columns & Pediment
+    for (let cx of [-4.5, -1.5, 1.5, 4.5]) {
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 8), houseWhiteMat);
+      col.position.set(cx, 4.3, 8.2);
+      schoolGroup.add(col);
+    }
+    const pediment = new THREE.Mesh(new THREE.ConeGeometry(7, 3, 4), houseWhiteMat);
+    pediment.rotation.y = Math.PI / 4;
+    pediment.position.set(0, 9.8, 8.2);
+    schoolGroup.add(pediment);
+
+    // Grand Entrance Double Doors with Transom
+    const sDoor = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.6), woodRoofMat);
+    sDoor.position.set(0, 2.1, 7.06);
+    schoolGroup.add(sDoor);
+
+    // School Name Signboard
+    const schoolSignTex = makeCanvasTexture(512, 128, (ctx, w, h) => {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(4, 4, w - 8, h - 8);
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 30px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🏫 GRANDVILLE MEMORIAL SCHOOL', w / 2, 54);
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = 'bold 18px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('PUBLIC ELEMENTARY & HIGH SCHOOL • DISTRICT 4 • EST. 1948', w / 2, 94);
+    });
+    const schoolSign = new THREE.Mesh(new THREE.PlaneGeometry(16, 2.8), new THREE.MeshBasicMaterial({ map: schoolSignTex }));
+    schoolSign.position.set(0, 6.2, 7.08);
+    schoolGroup.add(schoolSign);
+
+    // Clock Belfry with Real Bell & Weather Vane
+    const clockTower = new THREE.Mesh(new THREE.BoxGeometry(6, 16, 6), concreteMat);
+    clockTower.position.set(0, 8.5, 3.5);
+    schoolGroup.add(clockTower);
+    const clockBelfryRoof = new THREE.Mesh(new THREE.ConeGeometry(4.5, 4.0, 4), roofSlateMat);
+    clockBelfryRoof.rotation.y = Math.PI / 4;
+    clockBelfryRoof.position.set(0, 18.5, 3.5);
+    schoolGroup.add(clockBelfryRoof);
+
+    // Flagpole with American Flag
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 12), new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8 }));
+    pole.position.set(0, 6, 13);
+    schoolGroup.add(pole);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.8), new THREE.MeshBasicMaterial({ color: 0xdc2626, side: THREE.DoubleSide }));
+    flag.position.set(1.5, 11, 13);
+    schoolGroup.add(flag);
+
+    // Detailed 1948 Wayne Works / Ford School Bus (Not a box!)
+    const busGroup = new THREE.Group();
+    busGroup.position.set(-10, 0, 13);
+    const busMat = new THREE.MeshLambertMaterial({ color: 0xf59e0b });
+    const busBody = new THREE.Mesh(new THREE.BoxGeometry(3.0, 2.2, 8.5), busMat);
+    busBody.position.y = 1.6;
+    busBody.castShadow = true;
+    busGroup.add(busBody);
+
+    const busHood = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.3, 2.0), busMat);
+    busHood.position.set(0, 1.15, 5.0);
+    busGroup.add(busHood);
+
+    // Black Grille & Headlights
+    const busGrille = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.9), new THREE.MeshLambertMaterial({ color: 0x0f172a }));
+    busGrille.position.set(0, 1.1, 6.02);
+    busGroup.add(busGrille);
+    for (let hx of [-1.0, 1.0]) {
+      const hl = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+      hl.position.set(hx, 1.2, 6.02);
+      busGroup.add(hl);
+    }
+    // Windshield & Windows
+    const busWindshield = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.0), new THREE.MeshBasicMaterial({ color: 0x93c5fd }));
+    busWindshield.position.set(0, 2.1, 4.28);
+    busGroup.add(busWindshield);
+    for (let wz of [-3.0, -1.8, -0.6, 0.6, 1.8, 3.0]) {
+      for (let wx of [-1.52, 1.52]) {
+        const bWin = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.75), new THREE.MeshBasicMaterial({ color: 0x93c5fd }));
+        bWin.rotation.y = wx > 0 ? Math.PI / 2 : -Math.PI / 2;
+        bWin.position.set(wx, 2.0, wz);
+        busGroup.add(bWin);
+      }
+    }
+    // Bus Wheels with Hubcaps
+    for (let wx of [-1.55, 1.55]) {
+      for (let wz of [-2.4, 3.2]) {
+        const bWheel = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 14), asphaltMat);
+        bWheel.rotation.z = Math.PI / 2;
+        bWheel.position.set(wx, 0.5, wz);
+        busGroup.add(bWheel);
+        const bCap = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.32, 14), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.8 }));
+        bCap.rotation.z = Math.PI / 2;
+        bCap.position.set(wx > 0 ? wx + 0.05 : wx - 0.05, 0.5, wz);
+        busGroup.add(bCap);
+      }
+    }
+    schoolGroup.add(busGroup);
+
+    scene.add(schoolGroup);
+    registerInteractive(schoolGroup, 'school-campus');
+
+    // 2. Community Church (Open to All Religions)
+    const churchGroup = new THREE.Group();
+    churchGroup.position.set(-75, 0, -15);
+
+    // Stone Water Table Base
+    const churchBase = new THREE.Mesh(new THREE.BoxGeometry(15, 0.6, 21), concreteMat);
+    churchBase.position.y = 0.3;
+    churchGroup.add(churchBase);
+
+    // Main Sanctuary Body (White Clapboard with Cedar Trim)
+    const cBody = new THREE.Mesh(new THREE.BoxGeometry(14, 7.5, 20), houseWhiteMat);
+    cBody.position.y = 4.05;
+    cBody.castShadow = true;
+    churchGroup.add(cBody);
+
+    // Steeply Pitched Slate Gable Roof
+    const cRoof = new THREE.Mesh(new THREE.ConeGeometry(12, 6, 4), roofSlateMat);
+    cRoof.rotation.y = Math.PI / 4;
+    cRoof.scale.set(1, 1, 1.45);
+    cRoof.position.set(0, 10.5, 0);
+    cRoof.castShadow = true;
+    churchGroup.add(cRoof);
+
+    // Gothic Pointed Arched Stained Glass Windows along sides
+    for (let zSide of [-6, -2, 2, 6]) {
+      for (let xSide of [-7.05, 7.05]) {
+        const sWin = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 3.2), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+        sWin.rotation.y = xSide > 0 ? Math.PI / 2 : -Math.PI / 2;
+        sWin.position.set(xSide, 4.5, zSide);
+        churchGroup.add(sWin);
+      }
+    }
+
+    // Heavy Double Arched Wooden Entrance Doors
+    const cDoor = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 4.2), woodRoofMat);
+    cDoor.position.set(0, 2.4, 10.05);
+    churchGroup.add(cDoor);
+
+    // Tall Gothic Bell Spire with Gold Cross
+    const steepleTower = new THREE.Mesh(new THREE.BoxGeometry(4.5, 10, 4.5), houseWhiteMat);
+    steepleTower.position.set(0, 11, 8);
+    churchGroup.add(steepleTower);
+    const steeple = new THREE.Mesh(new THREE.ConeGeometry(2.6, 14, 8), roofSlateMat);
+    steeple.position.set(0, 22, 8);
+    churchGroup.add(steeple);
+
+    const cross = new THREE.Mesh(new THREE.BoxGeometry(0.35, 2.5, 0.15), new THREE.MeshBasicMaterial({ color: 0xf59e0b }));
+    cross.position.set(0, 29.5, 8);
+    churchGroup.add(cross);
+    const crossBar = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, 0.15), new THREE.MeshBasicMaterial({ color: 0xf59e0b }));
+    crossBar.position.set(0, 30.2, 8);
+    churchGroup.add(crossBar);
+
+    // Notice Board Sign
+    const churchSignTex = makeCanvasTexture(512, 128, (ctx, w, h) => {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(4, 4, w - 8, h - 8);
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 30px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⛪ GRANDVILLE COMMUNITY CHURCH', w / 2, 54);
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = 'bold 18px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('A WELCOMING HOUSE OF WORSHIP FOR ALL FAITHS • EST. 1948', w / 2, 94);
+    });
+    const churchSign = new THREE.Mesh(new THREE.PlaneGeometry(12, 2.4), new THREE.MeshBasicMaterial({ map: churchSignTex }));
+    churchSign.position.set(0, 0.8, 12.5);
+    churchGroup.add(churchSign);
+
+    scene.add(churchGroup);
+    registerInteractive(churchGroup, 'church-worship');
+
+    // 3. Community Centre & Olympic Swimming Pool
+    const commCenterGroup = new THREE.Group();
+    commCenterGroup.position.set(-30, 0, -15);
+
+    // Mid-Century Modern Civic Hall (Red Brick & Limestone Accents)
+    const commBldg = new THREE.Mesh(new THREE.BoxGeometry(22, 7.0, 14), brickRedMat);
+    commBldg.position.set(0, 3.5, 0);
+    commBldg.castShadow = true;
+    commCenterGroup.add(commBldg);
+
+    // Floor-to-Ceiling High Clerestory Windows Band & Limestone Pillars
+    const commGlass = new THREE.Mesh(new THREE.PlaneGeometry(18, 2.8), new THREE.MeshBasicMaterial({ color: 0x93c5fd }));
+    commGlass.position.set(0, 5.2, 7.05);
+    commCenterGroup.add(commGlass);
+
+    // Cedar Overhanging Eaves Roof
+    const ccRoof = new THREE.Mesh(new THREE.BoxGeometry(23.5, 0.6, 15.5), woodRoofMat);
+    ccRoof.position.set(0, 7.2, 0);
+    commCenterGroup.add(ccRoof);
+
+    // Grand Double Glass Entryway
+    const commEntry = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 3.2), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+    commEntry.position.set(0, 1.8, 7.06);
+    commCenterGroup.add(commEntry);
+
+    // Civic Hall Signboard
+    const ccSignTex = makeCanvasTexture(512, 128, (ctx, w, h) => {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(4, 4, w - 8, h - 8);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 30px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🏛️ GRANDVILLE COMMUNITY CENTRE & AQUATICS', w / 2, 54);
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 18px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('GYMNASIUM • TOWN ASSEMBLY HALL • OLYMPIC POOL • EST. 1948', w / 2, 94);
+    });
+    const ccSign = new THREE.Mesh(new THREE.PlaneGeometry(16, 2.8), new THREE.MeshBasicMaterial({ map: ccSignTex }));
+    ccSign.position.set(0, 7.8, 7.1);
+    commCenterGroup.add(ccSign);
+
+    // Olympic Pool Area with Tiled Coping & Turquoise Water
+    const poolBorder = new THREE.Mesh(new THREE.BoxGeometry(20, 0.4, 12), concreteMat);
+    poolBorder.position.set(0, 0.2, 15);
+    commCenterGroup.add(poolBorder);
+
+    const poolWater = new THREE.Mesh(new THREE.PlaneGeometry(18, 10), new THREE.MeshStandardMaterial({ color: 0x06b6d4, roughness: 0.1, metalness: 0.2 }));
+    poolWater.rotation.x = -Math.PI / 2;
+    poolWater.position.set(0, 0.38, 15);
+    commCenterGroup.add(poolWater);
+
+    // Pool Lane Lines
+    for (let lz of [12.5, 14.2, 15.8, 17.5]) {
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(17, 0.15), new THREE.MeshBasicMaterial({ color: 0x0284c7 }));
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(0, 0.39, lz);
+      commCenterGroup.add(line);
+    }
+
+    // High Diving Board Tower
+    const diveTower = new THREE.Mesh(new THREE.BoxGeometry(0.8, 4.2, 0.8), concreteMat);
+    diveTower.position.set(9.2, 2.1, 15);
+    commCenterGroup.add(diveTower);
+    const board = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.15, 0.65), houseWhiteMat);
+    board.position.set(8.0, 4.25, 15);
+    commCenterGroup.add(board);
+
+    // Poolside Sun Lounge Chairs with Striped Parasols
+    for (let sx of [-6, -2, 2, 6]) {
+      const chair = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.3, 0.8), woodRoofMat);
+      chair.position.set(sx, 0.35, 21.5);
+      commCenterGroup.add(chair);
+
+      const umbrellaPole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.6), concreteMat);
+      umbrellaPole.position.set(sx, 1.3, 22.5);
+      commCenterGroup.add(umbrellaPole);
+      const umbrella = new THREE.Mesh(new THREE.ConeGeometry(1.3, 0.6, 8), new THREE.MeshLambertMaterial({ color: sx > 0 ? 0xdc2626 : 0x0284c7 }));
+      umbrella.position.set(sx, 2.6, 22.5);
+      commCenterGroup.add(umbrella);
+    }
+
+    scene.add(commCenterGroup);
+    registerInteractive(commCenterGroup, 'community-center');
+
+    // 4. Cottage Medical Clinic & Ambulance
+    const clinicGroup = new THREE.Group();
+    clinicGroup.position.set(30, 0, -15);
+
+    // Classical Colonial Revival Clinic Building (Warm Cream Clapboard & Slate Roof)
+    const clinicBase = new THREE.Mesh(new THREE.BoxGeometry(17, 0.4, 13), concreteMat);
+    clinicBase.position.y = 0.2;
+    clinicGroup.add(clinicBase);
+
+    const clinicBldg = new THREE.Mesh(new THREE.BoxGeometry(16, 6.0, 12), new THREE.MeshLambertMaterial({ color: 0xfef9c3 }));
+    clinicBldg.position.y = 3.2;
+    clinicBldg.castShadow = true;
+    clinicGroup.add(clinicBldg);
+
+    // Slate Grey Hipped Roof with 2 Dormers
+    const clinicRoof = new THREE.Mesh(new THREE.ConeGeometry(12.5, 4.5, 4), roofSlateMat);
+    clinicRoof.rotation.y = Math.PI / 4;
+    clinicRoof.scale.set(1.15, 1.0, 0.95);
+    clinicRoof.position.set(0, 8.2, 0);
+    clinicRoof.castShadow = true;
+    clinicGroup.add(clinicRoof);
+
+    // Multi-Pane Windows with Hunter Green Shutters
+    for (let wx of [-5.5, -2.5, 2.5, 5.5]) {
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.2), new THREE.MeshBasicMaterial({ color: 0x93c5fd }));
+      win.position.set(wx, 3.4, 6.05);
+      clinicGroup.add(win);
+      for (let sx of [-0.95, 0.95]) {
+        const shutter = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 2.2), new THREE.MeshLambertMaterial({ color: 0x064e3b }));
+        shutter.position.set(wx + sx, 3.4, 6.06);
+        clinicGroup.add(shutter);
+      }
+    }
+
+    // Classical Entrance Portico with 4 White Columns & Red Cross Emblem
+    for (let cx of [-1.5, 1.5]) {
+      const cCol = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 3.8), houseWhiteMat);
+      cCol.position.set(cx, 1.9, 7.4);
+      clinicGroup.add(cCol);
+    }
+    const cPediment = new THREE.Mesh(new THREE.ConeGeometry(2.8, 1.5, 4), houseWhiteMat);
+    cPediment.rotation.y = Math.PI / 4;
+    cPediment.position.set(0, 4.4, 7.4);
+    clinicGroup.add(cPediment);
+
+    // 3D Red Cross Emblem on Portico
+    const rcH = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.1), new THREE.MeshBasicMaterial({ color: 0xdc2626 }));
+    rcH.position.set(0, 4.2, 8.25);
+    clinicGroup.add(rcH);
+    const rcV = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.2, 0.1), new THREE.MeshBasicMaterial({ color: 0xdc2626 }));
+    rcV.position.set(0, 4.2, 8.25);
+    clinicGroup.add(rcV);
+
+    // Clinic Enamel Sign
+    const clinicSignTex = makeCanvasTexture(512, 128, (ctx, w, h) => {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(0, 0, w, 12);
+      ctx.fillRect(0, h - 12, w, 12);
+      ctx.font = 'bold 32px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🏥 GRANDVILLE COTTAGE CLINIC', w / 2, 54);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 18px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('DOCTORS & PEDIATRICS • EMERGENCY ROOM 24/7 • EST. 1948', w / 2, 94);
+    });
+    const clinicSign = new THREE.Mesh(new THREE.PlaneGeometry(12, 2.4), new THREE.MeshBasicMaterial({ map: clinicSignTex }));
+    clinicSign.position.set(0, 5.8, 6.1);
+    clinicGroup.add(clinicSign);
+
+    // Detailed 1948 Vintage Cadillac / Flxible Ambulance (Not a box!)
+    const ambGroup = new THREE.Group();
+    ambGroup.position.set(0, 0, 11);
+    const ambBody = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.4, 5.2), houseWhiteMat);
+    ambBody.position.y = 1.2;
+    ambBody.castShadow = true;
+    ambGroup.add(ambBody);
+
+    // Burgundy Side Flash Stripe
+    const ambStripe = new THREE.Mesh(new THREE.BoxGeometry(2.42, 0.25, 5.2), new THREE.MeshLambertMaterial({ color: 0x991b1b }));
+    ambStripe.position.y = 1.1;
+    ambGroup.add(ambStripe);
+
+    // Rounded Aerodynamic Hood & Chrome Radiator
+    const ambHood = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.9, 1.6), houseWhiteMat);
+    ambHood.position.set(0, 0.85, 3.0);
+    ambGroup.add(ambHood);
+    const ambGrille = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.7), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.85 }));
+    ambGrille.position.set(0, 0.85, 3.82);
+    ambGroup.add(ambGrille);
+
+    // Rooftop Red Emergency Flashing Beacon
+    const ambBeacon = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 14), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+    ambBeacon.position.set(0, 2.05, 0.5);
+    ambGroup.add(ambBeacon);
+
+    // Red Cross Decals on Doors
+    for (let side of [-1.22, 1.22]) {
+      const rc1 = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.24), new THREE.MeshBasicMaterial({ color: 0xdc2626 }));
+      rc1.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+      rc1.position.set(side, 1.35, 0);
+      ambGroup.add(rc1);
+      const rc2 = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.8), new THREE.MeshBasicMaterial({ color: 0xdc2626 }));
+      rc2.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+      rc2.position.set(side, 1.35, 0);
+      ambGroup.add(rc2);
+    }
+    // Rubber Wheels with Chrome Caps
+    for (let ax of [-1.25, 1.25]) {
+      for (let az of [-1.5, 1.8]) {
+        const aw = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.26, 14), asphaltMat);
+        aw.rotation.z = Math.PI / 2;
+        aw.position.set(ax, 0.42, az);
+        ambGroup.add(aw);
+      }
+    }
+    clinicGroup.add(ambGroup);
+
+    scene.add(clinicGroup);
+    registerInteractive(clinicGroup, 'medical-clinic');
+
+    // 5. Fire & Police Station
+    const fireGroup = new THREE.Group();
+    fireGroup.position.set(-105, 0, -15);
+
+    // Two-Story Municipal Red Brick Station Body with Stone Lintels
+    const fireBldg = new THREE.Mesh(new THREE.BoxGeometry(18, 7.8, 13), brickRedMat);
+    fireBldg.position.set(0, 3.9, 0);
+    fireBldg.castShadow = true;
+    fireGroup.add(fireBldg);
+
+    // Limestone Parapet Cornice Wall
+    const fireCornice = new THREE.Mesh(new THREE.BoxGeometry(18.6, 0.6, 13.6), concreteMat);
+    fireCornice.position.set(0, 8.1, 0);
+    fireGroup.add(fireCornice);
+
+    // Central Hose-Drying & Siren Tower with Louvers
+    const fireTower = new THREE.Mesh(new THREE.BoxGeometry(4.8, 7.5, 4.8), brickRedMat);
+    fireTower.position.set(0, 11.8, 2.5);
+    fireGroup.add(fireTower);
+    const fireTowerRoof = new THREE.Mesh(new THREE.ConeGeometry(3.6, 3.0, 4), roofSlateMat);
+    fireTowerRoof.rotation.y = Math.PI / 4;
+    fireTowerRoof.position.set(0, 16.8, 2.5);
+    fireGroup.add(fireTowerRoof);
+
+    // Twin Arched Red Wooden Apparatus Bays with Glass Upper Panes
+    for (let fx of [-4.5, 4.5]) {
+      const bayArch = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 4.8), new THREE.MeshLambertMaterial({ color: 0x991b1b }));
+      bayArch.position.set(fx, 2.4, 6.55);
+      fireGroup.add(bayArch);
+      const bayWin = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 1.2), new THREE.MeshBasicMaterial({ color: 0xbae6fd }));
+      bayWin.position.set(fx, 3.8, 6.56);
+      fireGroup.add(bayWin);
+    }
+
+    // Gold Leaf Civic Signboard
+    const fireSignTex = makeCanvasTexture(512, 128, (ctx, w, h) => {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#dc2626';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(4, 4, w - 8, h - 8);
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = 'bold 30px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🚒 GRANDVILLE FIRE & POLICE DEPT.', w / 2, 54);
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 18px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('STATION NO. 1 • 24-HR EMERGENCY DISPATCH • ENGINE CO. 1', w / 2, 94);
+    });
+    const fireSign = new THREE.Mesh(new THREE.PlaneGeometry(16, 2.6), new THREE.MeshBasicMaterial({ map: fireSignTex }));
+    fireSign.position.set(0, 6.8, 6.57);
+    fireGroup.add(fireSign);
+
+    // Detailed 1948 Vintage Fire Engine (Parked at bay)
+    const engine = new THREE.Group();
+    engine.position.set(4.5, 0, 11);
+    const engCab = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.8, 2.2), new THREE.MeshLambertMaterial({ color: 0xdc2626 }));
+    engCab.position.set(0, 1.4, 1.8);
+    engine.add(engCab);
+    const engHood = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.1, 1.8), new THREE.MeshLambertMaterial({ color: 0xdc2626 }));
+    engHood.position.set(0, 0.95, 3.6);
+    engine.add(engHood);
+    const engDeck = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.2, 4.0), new THREE.MeshLambertMaterial({ color: 0xb91c1c }));
+    engDeck.position.set(0, 1.0, -1.2);
+    engine.add(engDeck);
+
+    // Chrome Ladders, Hose Reel, Beacon & Wheels
+    const ladder = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 4.2), woodRoofMat);
+    ladder.position.set(1.35, 1.5, -1.2);
+    engine.add(ladder);
+    const engBeacon = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+    engBeacon.position.set(0, 2.4, 1.8);
+    engine.add(engBeacon);
+    for (let ex of [-1.35, 1.35]) {
+      for (let ez of [-1.8, 2.4]) {
+        const ew = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.28, 14), asphaltMat);
+        ew.rotation.z = Math.PI / 2;
+        ew.position.set(ex, 0.45, ez);
+        engine.add(ew);
+      }
+    }
+    fireGroup.add(engine);
+
+    // Detailed 1948 Black-and-White Police Cruiser
+    const police = new THREE.Group();
+    police.position.set(-4.5, 0, 11);
+    const polBody = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.0, 4.6), new THREE.MeshLambertMaterial({ color: 0x0f172a }));
+    polBody.position.y = 0.8;
+    police.add(polBody);
+    const polCabin = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.9, 2.4), houseWhiteMat);
+    polCabin.position.set(0, 1.6, -0.2);
+    police.add(polCabin);
+    const polBeacon = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 12), new THREE.MeshBasicMaterial({ color: 0xdc2626 }));
+    polBeacon.position.set(0, 2.15, -0.2);
+    police.add(polBeacon);
+    for (let px of [-1.15, 1.15]) {
+      for (let pz of [-1.4, 1.4]) {
+        const pw = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.25, 14), asphaltMat);
+        pw.rotation.z = Math.PI / 2;
+        pw.position.set(px, 0.4, pz);
+        police.add(pw);
+      }
+    }
+    fireGroup.add(police);
+
+    scene.add(fireGroup);
+    registerInteractive(fireGroup, 'fire-police');
+
+    /* ---------------------------------------------------------------------
+       G. 🏀 BASKETBALL COURTS, RECREATION & CENTRAL PARK LAKE
+       --------------------------------------------------------------------- */
+    // 1. Basketball Courts (2 Full Regulation Asphalt Courts & Hoops)
+    const bballGroup = new THREE.Group();
+    bballGroup.position.set(105, 0, -15);
+
+    const courtTex = makeCanvasTexture(512, 256, (ctx, w, h) => {
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(10, 10, w - 20, h - 20);
+
+      ctx.beginPath();
+      ctx.moveTo(w / 2, 10);
+      ctx.lineTo(w / 2, h - 10);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2, 40, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeRect(10, h / 2 - 40, 70, 80);
+      ctx.strokeRect(w - 80, h / 2 - 40, 70, 80);
+    });
+    const courtMesh = new THREE.Mesh(new THREE.PlaneGeometry(28, 15), new THREE.MeshBasicMaterial({ map: courtTex }));
+    courtMesh.rotation.x = -Math.PI / 2;
+    courtMesh.position.y = 0.05;
+    bballGroup.add(courtMesh);
+
+    function createHoop(hx) {
+      const hoop = new THREE.Group();
+      hoop.position.set(hx, 0, 0);
+
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.8), concreteMat);
+      pole.position.set(hx > 0 ? 1 : -1, 1.9, 0);
+      hoop.add(pole);
+
+      const bb = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.2, 1.8), houseWhiteMat);
+      bb.position.set(0, 3.2, 0);
+      hoop.add(bb);
+
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.03, 8, 16), new THREE.MeshBasicMaterial({ color: 0xf97316 }));
+      rim.rotation.x = Math.PI / 2;
+      rim.position.set(hx > 0 ? -0.4 : 0.4, 3.0, 0);
+      hoop.add(rim);
+
+      return hoop;
+    }
+    bballGroup.add(createHoop(-13));
+    bballGroup.add(createHoop(13));
+
+    // Bleachers
+    const bleacher = new THREE.Mesh(new THREE.BoxGeometry(8, 1.5, 2), woodRoofMat);
+    bleacher.position.set(0, 0.75, 9.5);
+    bballGroup.add(bleacher);
+
+    scene.add(bballGroup);
+    registerInteractive(bballGroup, 'basketball-courts');
+
+    // 2. Central Park, Lake, Children's Playground & Arched Footbridge (Z = 50)
+    const parkGroup = new THREE.Group();
+    parkGroup.position.set(0, 0, 50);
+
+    // Lush Green Park Lawn Parcel (Vehicles drive around the perimeter on Park Drives!)
+    const parkLawn = new THREE.Mesh(new THREE.PlaneGeometry(42, 48), darkGrassMat);
+    parkLawn.rotation.x = -Math.PI / 2;
+    parkLawn.position.set(0, 0.05, 0);
+    parkLawn.receiveShadow = true;
+    parkGroup.add(parkLawn);
+
+    // Natural Organic Lake / Pond (Water Surface at y = 0.08)
+    const lakeShape = new THREE.Shape();
+    const lRx = 16, lRz = 10;
+    for (let i = 0; i <= 36; i++) {
+      const theta = (i / 36) * Math.PI * 2;
+      const rMod = 1.0 + 0.07 * Math.sin(theta * 3) + 0.04 * Math.cos(theta * 5);
+      const px = Math.cos(theta) * lRx * rMod;
+      const pz = Math.sin(theta) * lRz * rMod;
+      if (i === 0) lakeShape.moveTo(px, pz);
+      else lakeShape.lineTo(px, pz);
+    }
+    const lakeGeom = new THREE.ShapeGeometry(lakeShape);
+    const lake = new THREE.Mesh(lakeGeom, waterMat);
+    lake.rotation.x = -Math.PI / 2;
+    lake.position.set(0, 0.08, 0);
+    parkGroup.add(lake);
+
+    // Natural River Stones & Boulders along Lake Shoreline
+    for (let i = 0; i < 40; i++) {
+      const theta = (i / 40) * Math.PI * 2;
+      const rMod = 1.0 + 0.07 * Math.sin(theta * 3) + 0.04 * Math.cos(theta * 5);
+      const bx = Math.cos(theta) * (lRx * rMod + 0.4);
+      const bz = Math.sin(theta) * (lRz * rMod + 0.4);
+      // Don't place stones right in front of the bridgeheads
+      if (Math.abs(bx) > 2.2 || (bz > -8.5 && bz < 8.5)) {
+        const stoneScale = 0.4 + (i % 5) * 0.15;
+        const stone = new THREE.Mesh(
+          new THREE.SphereGeometry(stoneScale, 8, 8),
+          new THREE.MeshLambertMaterial({ color: i % 2 === 0 ? 0x64748b : 0x475569 })
+        );
+        stone.scale.set(1.2, 0.6, 1.0);
+        stone.position.set(bx, 0.15, bz);
+        parkGroup.add(stone);
+      }
+    }
+
+    // Floating Water Lily Pads with Pink Blossoms
+    const lilyMat = new THREE.MeshLambertMaterial({ color: 0x15803d });
+    const flowerMat = new THREE.MeshBasicMaterial({ color: 0xfbcfe8 });
+    const lilyLocs = [
+      { x: -8, z: -4 }, { x: -6, z: 5 }, { x: 7, z: -3 }, { x: 9, z: 4 },
+      { x: -11, z: 1 }, { x: 10, z: -1 }, { x: 5, z: 6 }
+    ];
+    lilyLocs.forEach(loc => {
+      const pad = new THREE.Mesh(new THREE.CircleGeometry(0.65, 8), lilyMat);
+      pad.rotation.x = -Math.PI / 2;
+      pad.position.set(loc.x, 0.09, loc.z);
+      parkGroup.add(pad);
+      const fl = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.25, 6), flowerMat);
+      fl.position.set(loc.x, 0.2, loc.z);
+      parkGroup.add(fl);
+    });
+
+    // =====================================================================
+    // 🌉 ELEGANT 1948 ARCHED FOOTBRIDGE (真实曲线拱桥，带石砌桥墩、木质弧形桥面与复古铸铁路灯)
+    // =====================================================================
+    const bridgeGroup = new THREE.Group();
+    // Spans North-South across the narrow waist of the pond: z = -11 to z = +11
+    const bridgeSpan = 22; // length along Z
+    const bridgeWidth = 3.4;
+
+    // 1. Cut-Limestone Bridgehead Abutments on North & South Banks
+    for (let az of [-11, 11]) {
+      const abutment = new THREE.Mesh(new THREE.BoxGeometry(4.4, 1.2, 2.6), concreteMat);
+      abutment.position.set(0, 0.6, az);
+      abutment.castShadow = true;
+      bridgeGroup.add(abutment);
+    }
+
+    // 2. Parabolic Arched Wooden Deck Walkway (26 Segmented Cedar Planks)
+    const numPlanks = 26;
+    for (let i = 0; i <= numPlanks; i++) {
+      const t = (i / numPlanks) * 2 - 1; // t in [-1, 1]
+      const pz = t * 11;
+      // Parabolic curve equation: y(t) = 0.4 + 2.05 * (1 - t^2)
+      const py = 0.4 + 2.05 * (1 - t * t);
+      // Slope angle tangent dy/dz = -4.1 * t / 11
+      const slope = -4.1 * t / 11;
+      const angleX = Math.atan(slope);
+
+      const plank = new THREE.Mesh(new THREE.BoxGeometry(bridgeWidth, 0.14, 0.82), woodRoofMat);
+      plank.position.set(0, py, pz);
+      plank.rotation.x = angleX;
+      plank.castShadow = true;
+      bridgeGroup.add(plank);
+
+      // Heavy Timber Load-Bearing Curved Arch Stringers underneath deck
+      for (let sx of [-1.5, 1.5]) {
+        const stringer = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.35, 0.86), woodRoofMat);
+        stringer.position.set(sx, py - 0.2, pz);
+        stringer.rotation.x = angleX;
+        bridgeGroup.add(stringer);
+      }
+    }
+
+    // 3. Arched Handrails, Balusters & Corner Newel Posts with Lanterns
+    const numBalusters = 15;
+    for (let i = 0; i <= numBalusters; i++) {
+      const t = (i / numBalusters) * 2 - 1;
+      const pz = t * 11;
+      const py = 0.4 + 2.05 * (1 - t * t);
+      const slope = -4.1 * t / 11;
+      const angleX = Math.atan(slope);
+
+      for (let sideX of [-1.6, 1.6]) {
+        // Vertical Turned Baluster Post
+        const baluster = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.95), houseWhiteMat);
+        baluster.position.set(sideX, py + 0.48, pz);
+        bridgeGroup.add(baluster);
+
+        // Curved Top Handrail Segment
+        if (i < numBalusters) {
+          const nextT = ((i + 1) / numBalusters) * 2 - 1;
+          const nextPz = nextT * 11;
+          const nextPy = 0.4 + 2.05 * (1 - nextT * nextT);
+          const midZ = (pz + nextPz) / 2;
+          const midY = (py + nextPy) / 2 + 0.95;
+          const dist = Math.sqrt(Math.pow(nextPz - pz, 2) + Math.pow(nextPy - py, 2));
+
+          const railSeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, dist + 0.05), woodRoofMat);
+          railSeg.position.set(sideX, midY, midZ);
+          railSeg.rotation.x = angleX;
+          bridgeGroup.add(railSeg);
+        }
+      }
+    }
+
+    // 4 Corner Newel Posts with 1948 Cast-Iron Lanterns
+    for (let cz of [-11, 11]) {
+      for (let cx of [-1.65, 1.65]) {
+        const newel = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.5, 0.35), woodRoofMat);
+        newel.position.set(cx, 1.15, cz);
+        bridgeGroup.add(newel);
+
+        // Vintage Cast-Iron Park Lantern Post
+        const lampPole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.8), new THREE.MeshLambertMaterial({ color: 0x1e293b }));
+        lampPole.position.set(cx, 2.0, cz);
+        bridgeGroup.add(lampPole);
+
+        // Glowing Amber Glass Lantern Globe
+        const lantern = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 12), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+        lantern.position.set(cx, 2.45, cz);
+        bridgeGroup.add(lantern);
+        const lanternCap = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.18, 8), new THREE.MeshLambertMaterial({ color: 0x0f172a }));
+        lanternCap.position.set(cx, 2.6, cz);
+        bridgeGroup.add(lanternCap);
+      }
+    }
+    parkGroup.add(bridgeGroup);
+
+    // 4. Meandering Flagstone / Cobblestone Walking Paths
+    // North park path connecting Veterans Parkway (z = -24 in local, z = 26 world) to North bridgehead (z = -11)
+    const northPath = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 13), sidewalkMat);
+    northPath.rotation.x = -Math.PI / 2;
+    northPath.position.set(0, 0.06, -17.5);
+    parkGroup.add(northPath);
+
+    // South park path connecting South bridgehead (z = 11) to Lincoln Boulevard (z = 24 in local, z = 74 world)
+    const southPath = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 13), sidewalkMat);
+    southPath.rotation.x = -Math.PI / 2;
+    southPath.position.set(0, 0.06, 17.5);
+    parkGroup.add(southPath);
+
+    // Park Benches facing the lake
+    const benchLocs = [
+      { x: -12, z: -7, rot: Math.PI / 4 },
+      { x: 12, z: -7, rot: -Math.PI / 4 },
+      { x: -12, z: 7, rot: 3 * Math.PI / 4 },
+      { x: 12, z: 7, rot: -3 * Math.PI / 4 }
+    ];
+    benchLocs.forEach(b => {
+      const bench = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.6, 0.7), woodRoofMat);
+      bench.position.set(b.x, 0.35, b.z);
+      bench.rotation.y = b.rot;
+      parkGroup.add(bench);
+    });
+
+    // 5. Playground: Swings, Slide & Merry-Go-Round (West side of Central Park)
+    const swingSet = new THREE.Group();
+    swingSet.position.set(-15, 0, 16);
+    const sBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 6), concreteMat);
+    sBeam.rotation.z = Math.PI / 2;
+    sBeam.position.y = 2.8;
+    swingSet.add(sBeam);
+    for (let sx of [-2.8, 2.8]) {
+      for (let sz of [-0.9, 0.9]) {
+        const sLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.2), concreteMat);
+        sLeg.position.set(sx, 1.4, sz);
+        sLeg.rotation.x = sz > 0 ? 0.3 : -0.3;
+        swingSet.add(sLeg);
+      }
+    }
+    // Children's Slide
+    const slide = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 3.8), new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.8 }));
+    slide.rotation.x = Math.PI / 3;
+    slide.position.set(4, 1.3, 0);
+    swingSet.add(slide);
+
+    parkGroup.add(swingSet);
+
+    scene.add(parkGroup);
+    registerInteractive(parkGroup, 'central-park-playground');
+
+    // 3. Water Treatment Facility & Pumping Station
+    const waterTreatGroup = new THREE.Group();
+    waterTreatGroup.position.set(-140, 0, 50);
+
+    // Industrial Red-Brick Pump House with Stone Keystones
+    const treatBase = new THREE.Mesh(new THREE.BoxGeometry(24, 0.5, 18), concreteMat);
+    treatBase.position.y = 0.25;
+    waterTreatGroup.add(treatBase);
+
+    const treatBldg = new THREE.Mesh(new THREE.BoxGeometry(22, 6.8, 16), brickRedMat);
+    treatBldg.position.y = 3.65;
+    treatBldg.castShadow = true;
+    waterTreatGroup.add(treatBldg);
+
+    // Pitched Slate Industrial Roof with Copper Ridge Cupola
+    const treatRoof = new THREE.Mesh(new THREE.ConeGeometry(16, 4.0, 4), roofSlateMat);
+    treatRoof.rotation.y = Math.PI / 4;
+    treatRoof.scale.set(1.15, 1.0, 0.95);
+    treatRoof.position.set(0, 8.8, 0);
+    waterTreatGroup.add(treatRoof);
+
+    // Arched Steel Factory Windows with Keystones
+    for (let wx of [-6, 6]) {
+      const wMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2.8), new THREE.MeshBasicMaterial({ color: 0x93c5fd }));
+      wMesh.position.set(wx, 4.2, 8.05);
+      waterTreatGroup.add(wMesh);
+    }
+    // Double Industrial Steel Doors
+    const tDoors = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 3.8), new THREE.MeshLambertMaterial({ color: 0x334155 }));
+    tDoors.position.set(0, 2.0, 8.06);
+    waterTreatGroup.add(tDoors);
+
+    // Two Circular Concrete Clarifier Settling Tanks with Water & Revolving Bridge Arm
+    for (let tz of [-8, 8]) {
+      const tankRim = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.2, 2.6, 28), concreteMat);
+      tankRim.position.set(18, 1.3, tz);
+      waterTreatGroup.add(tankRim);
+
+      const tankWater = new THREE.Mesh(new THREE.CircleGeometry(4.8, 28), waterMat);
+      tankWater.rotation.x = -Math.PI / 2;
+      tankWater.position.set(18, 2.4, tz);
+      waterTreatGroup.add(tankWater);
+
+      // Rotating Steel Bridge Truss Arm
+      const bridgeArm = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 9.6), new THREE.MeshLambertMaterial({ color: 0x64748b }));
+      bridgeArm.position.set(18, 2.8, tz);
+      waterTreatGroup.add(bridgeArm);
+    }
+
+    // Facility Identification Signboard
+    const treatSignTex = makeCanvasTexture(512, 128, (ctx, w, h) => {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(4, 4, w - 8, h - 8);
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 30px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('💧 GRANDVILLE WATER FILTRATION PLANT', w / 2, 54);
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 18px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('MUNICIPAL WATER DISTRICT • 1.2 MGD CAPACITY • EST. 1948', w / 2, 94);
+    });
+    const treatSign = new THREE.Mesh(new THREE.PlaneGeometry(16, 2.8), new THREE.MeshBasicMaterial({ map: treatSignTex }));
+    treatSign.position.set(0, 6.4, 8.08);
+    waterTreatGroup.add(treatSign);
+
+    scene.add(waterTreatGroup);
+    registerInteractive(waterTreatGroup, 'water-treatment');
+
+    const towerGroup = new THREE.Group();
+    towerGroup.position.set(-140, 0, 15);
+    for (let lx of [-4, 4]) {
+      for (let lz of [-4, 4]) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 22), concreteMat);
+        leg.position.set(lx, 11, lz);
+        towerGroup.add(leg);
+      }
+    }
+    const tankTex = makeCanvasTexture(512, 256, (ctx, w, h) => {
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#0284c7';
+      ctx.font = 'bold 54px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('GRANDVILLE', w / 2, 110);
+      ctx.font = 'bold 28px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('WATER CO. • EST. 1948', w / 2, 175);
+    });
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, 9, 24), new THREE.MeshStandardMaterial({ map: tankTex, roughness: 0.3, metalness: 0.4 }));
+    tank.position.set(0, 24, 0);
+    towerGroup.add(tank);
+    const tankRoof = new THREE.Mesh(new THREE.ConeGeometry(7.5, 4, 24), concreteMat);
+    tankRoof.position.set(0, 30.5, 0);
+    towerGroup.add(tankRoof);
+    scene.add(towerGroup);
+    registerInteractive(towerGroup, 'water-tower');
+
+    // Trees throughout residential streets & parks
+    function createTree(x, z, scale = 1) {
+      const tree = new THREE.Group();
+      tree.position.set(x, 0, z);
+      tree.scale.set(scale, scale, scale);
+
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.45, 2.8, 8), trunkMat);
+      trunk.position.y = 1.4;
+      trunk.castShadow = true;
+      tree.add(trunk);
+
+      const foliage = new THREE.Mesh(new THREE.DodecahedronGeometry(2.4, 1), foliageMat);
+      foliage.position.y = 4.0;
+      foliage.castShadow = true;
+      tree.add(foliage);
+
+      scene.add(tree);
+      return tree;
+    }
+    for (let z = -140; z <= 140; z += 20) {
+      createTree(-9, z, 0.95);
+      createTree(9, z, 0.95);
+    }
+    for (let x = -85; x <= 85; x += 25) {
+      createTree(x, 48, 0.9);
+      createTree(x, 98, 0.9);
+    }
+
+    /* =====================================================================
+       H. 🚶 AUTONOMOUS 1948 WALKING RESIDENTS (NON-REPETITIVE AI SYSTEM)
+       ===================================================================== */
+    // Key Town Destinations for Citizens
+    const CITIZEN_DESTINATIONS = [
+      { name: 'Tailor Shop', x: -35, z: -58, type: 'tailor' },
+      { name: 'Grocery Store', x: 38, z: -56, type: 'grocery' },
+      { name: 'Town Pub', x: -65, z: -58, type: 'pub' },
+      { name: 'Hardware Shop', x: 68, z: -58, type: 'shop' },
+      { name: 'Pharmacy', x: -15, z: -58, type: 'pharmacy' },
+      { name: 'Bakery', x: 15, z: -58, type: 'bakery' },
+      { name: 'School Campus', x: 75, z: -5, type: 'school' },
+      { name: 'Community Church', x: -75, z: -5, type: 'church' },
+      { name: 'Community Pool', x: -30, z: -5, type: 'pool' },
+      { name: 'Medical Clinic', x: 30, z: -5, type: 'clinic' },
+      { name: 'Basketball Court', x: 105, z: -10, type: 'basketball' },
+      { name: 'Park Lake Bridge', x: 0, z: 50, type: 'park' },
+      { name: 'Train Platform', x: 50, z: -145, type: 'station' },
+      { name: 'West Home 1', x: -55, z: 20, type: 'house' },
+      { name: 'West Home 2', x: -70, z: 45, type: 'house' },
+      { name: 'East Home 1', x: 55, z: 20, type: 'house' },
+      { name: 'East Home 2', x: 70, z: 45, type: 'house' },
+      { name: 'South Home', x: 0, z: 118, type: 'house' }
+    ];
+
+    const outfitColors = [0x1e3a8a, 0x991b1b, 0x14532d, 0x78350f, 0x475569, 0xd97706, 0x065f46];
+    const citizens = [];
+
+    // Helper: Create a 1948 Character Mesh with Animated Limbs
+    function createCitizen(startPos, charType = 'man') {
+      const charGroup = new THREE.Group();
+      charGroup.position.set(startPos.x, 0, startPos.z);
+
+      // Torso / Jacket
+      const torsoMat = new THREE.MeshLambertMaterial({ color: outfitColors[Math.floor(Math.random() * outfitColors.length)] });
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.75, 0.35), torsoMat);
+      torso.position.y = 1.15;
+      torso.castShadow = true;
+      charGroup.add(torso);
+
+      // Head
+      const headMat = new THREE.MeshLambertMaterial({ color: 0xfbcfe8 });
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 12), headMat);
+      head.position.y = 1.7;
+      head.castShadow = true;
+      charGroup.add(head);
+
+      // Fedora Hat
+      const hatMat = new THREE.MeshLambertMaterial({ color: 0x1e293b });
+      const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.05, 12), hatMat);
+      hatBrim.position.y = 1.85;
+      charGroup.add(hatBrim);
+      const hatCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.25, 12), hatMat);
+      hatCrown.position.y = 1.98;
+      charGroup.add(hatCrown);
+
+      // Left & Right Arms (Hinged at shoulders for walking animation)
+      const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.6, 0.14), torsoMat);
+      leftArm.position.set(-0.35, 1.1, 0);
+      charGroup.add(leftArm);
+
+      const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.6, 0.14), torsoMat);
+      rightArm.position.set(0.35, 1.1, 0);
+      charGroup.add(rightArm);
+
+      // Left & Right Legs (Hinged at hips for walking animation)
+      const pantsMat = new THREE.MeshLambertMaterial({ color: 0x18181b });
+      const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.75, 0.18), pantsMat);
+      leftLeg.position.set(-0.16, 0.4, 0);
+      charGroup.add(leftLeg);
+
+      const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.75, 0.18), pantsMat);
+      rightLeg.position.set(0.16, 0.4, 0);
+      charGroup.add(rightLeg);
+
+      // Grocery Bag Prop (Toggled when exiting grocery store!)
+      const groceryBag = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.5, 0.25), new THREE.MeshLambertMaterial({ color: 0xd97706 }));
+      groceryBag.position.set(0.45, 0.9, 0.1);
+      groceryBag.visible = false;
+      charGroup.add(groceryBag);
+
+      scene.add(charGroup);
+
+      // Autonomous Citizen State Machine
+      const citizenObj = {
+        mesh: charGroup,
+        torsoMat: torsoMat,
+        hatMat: hatMat,
+        groceryBag: groceryBag,
+        leftArm: leftArm,
+        rightArm: rightArm,
+        leftLeg: leftLeg,
+        rightLeg: rightLeg,
+        speed: 1.2 + Math.random() * 0.4,
+        state: 'WALKING', // WALKING, INSIDE, IDLE
+        stateTimer: 0,
+        targetDest: null,
+        animTime: Math.random() * 10
+      };
+
+      pickNewDestination(citizenObj);
+      citizens.push(citizenObj);
+      return citizenObj;
+    }
+
+    // AI Function: Pick an organic next goal across town
+    function pickNewDestination(citizen) {
+      let dest;
+      do {
+        dest = CITIZEN_DESTINATIONS[Math.floor(Math.random() * CITIZEN_DESTINATIONS.length)];
+      } while (citizen.targetDest && dest.name === citizen.targetDest.name);
+
+      citizen.targetDest = dest;
+      citizen.state = 'WALKING';
+      citizen.mesh.visible = true;
+    }
+
+    // Spawn 24 Autonomous Town Residents across Grandville
+    for (let i = 0; i < 24; i++) {
+      const randomDest = CITIZEN_DESTINATIONS[i % CITIZEN_DESTINATIONS.length];
+      const startX = randomDest.x + (Math.random() * 8 - 4);
+      const startZ = randomDest.z + (Math.random() * 8 - 4);
+      createCitizen({ x: startX, z: startZ });
+    }
+
+    // Update AI & Animate Characters each frame
+    function updateCitizens(delta) {
+      citizens.forEach(c => {
+        if (c.state === 'WALKING') {
+          // Vector towards target destination
+          const dx = c.targetDest.x - c.mesh.position.x;
+          const dz = c.targetDest.z - c.mesh.position.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+
+          if (dist > 1.2) {
+            // Turn to face movement direction
+            c.mesh.rotation.y = Math.atan2(dx, dz);
+
+            // Step forward
+            const step = c.speed * delta;
+            c.mesh.position.x += (dx / dist) * step;
+            c.mesh.position.z += (dz / dist) * step;
+
+            // Arched Bridge elevation tracking over Central Park Pond (Z: 39 to 61)
+            if (Math.abs(c.mesh.position.x) < 2.0 && c.mesh.position.z >= 39 && c.mesh.position.z <= 61) {
+              const s = (c.mesh.position.z - 50) / 11;
+              c.mesh.position.y = 0.4 + 2.05 * (1 - s * s);
+            } else {
+              c.mesh.position.y = 0;
+            }
+
+            // Leg & Arm pendulum swing
+            c.animTime += delta * 6;
+            c.leftLeg.rotation.x = Math.sin(c.animTime) * 0.55;
+            c.rightLeg.rotation.x = -Math.sin(c.animTime) * 0.55;
+            c.leftArm.rotation.x = -Math.sin(c.animTime) * 0.45;
+            c.rightArm.rotation.x = Math.sin(c.animTime) * 0.45;
+          } else {
+            // Reached Destination! Enter Building & Perform Activity
+            c.state = 'INSIDE';
+            c.stateTimer = 4 + Math.random() * 6; // Stay inside for 4-10 seconds
+            c.mesh.visible = false; // Vanish inside building door!
+
+            // Reset limbs
+            c.leftLeg.rotation.x = 0;
+            c.rightLeg.rotation.x = 0;
+            c.leftArm.rotation.x = 0;
+            c.rightArm.rotation.x = 0;
+          }
+        } else if (c.state === 'INSIDE') {
+          c.stateTimer -= delta;
+          if (c.stateTimer <= 0) {
+            // EXIT BUILDING & CHANGE OUTFIT / PROPS (变装 / 提包!)
+            c.mesh.visible = true;
+
+            if (c.targetDest.type === 'tailor') {
+              // Emerges from Tailor Shop in a sharp new tailored suit & hat!
+              c.torsoMat.color.setHex(outfitColors[Math.floor(Math.random() * outfitColors.length)]);
+              c.hatMat.color.setHex(Math.random() > 0.5 ? 0x0f172a : 0x78350f);
+              c.groceryBag.visible = false;
+            } else if (c.targetDest.type === 'grocery') {
+              // Emerges from Supermarket carrying fresh grocery bags!
+              c.groceryBag.visible = true;
+            } else if (c.targetDest.type === 'house') {
+              // Change between casual / work clothes at home
+              c.torsoMat.color.setHex(outfitColors[Math.floor(Math.random() * outfitColors.length)]);
+              c.groceryBag.visible = false;
+            }
+
+            // Pick next destination across town!
+            pickNewDestination(c);
+          }
+        }
+      });
+    }
+
+    /* =====================================================================
+       3. 3D PROJECTED FLOATING LABELS ENGINE
+       ===================================================================== */
+    const markersMap = new Map();
+
+    function initLabels() {
+      labelsContainer.innerHTML = '';
+      TOWN_ZONES.forEach(zone => {
+        const markerEl = document.createElement('div');
+        markerEl.className = `zone-marker ${zone.highlight ? 'highlight' : ''}`;
+        markerEl.dataset.zoneId = zone.id;
+        markerEl.dataset.category = zone.category;
+
+        markerEl.innerHTML = `
+          <div class="marker-bubble">
+            <span class="marker-icon">${zone.icon}</span>
+            <span>${zone.name}</span>
+          </div>
+          <div class="marker-pin"></div>
+          <div class="marker-dot"></div>
+        `;
+
+        markerEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectZone(zone.id);
+        });
+
+        labelsContainer.appendChild(markerEl);
+        markersMap.set(zone.id, { el: markerEl, pos: new THREE.Vector3(zone.pos.x, zone.pos.y, zone.pos.z) });
+      });
+    }
+    initLabels();
+
+    const tempV = new THREE.Vector3();
+    function updateLabelsPosition() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      TOWN_ZONES.forEach(zone => {
+        const marker = markersMap.get(zone.id);
+        if (!marker) return;
+
+        tempV.copy(marker.pos);
+        tempV.project(camera);
+
+        if (tempV.z > 1) {
+          marker.el.style.display = 'none';
+          return;
+        }
+
+        const x = (tempV.x * 0.5 + 0.5) * width;
+        const y = (-(tempV.y * 0.5) + 0.5) * height;
+
+        marker.el.style.display = 'flex';
+        marker.el.style.left = `${x}px`;
+        marker.el.style.top = `${y}px`;
+      });
+    }
+
+    /* =====================================================================
+       4. INTERACTION, RAYCASTING & CAMERA ORBIT ANIMATION
+       ===================================================================== */
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    window.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.top-header') || e.target.closest('.filter-bar') || e.target.closest('.bottom-bar') || e.target.closest('.inspector-panel')) {
+        return;
+      }
+
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(interactiveObjects, true);
+
+      if (intersects.length > 0) {
+        let current = intersects[0].object;
+        while (current && (!current.userData || !current.userData.zoneId)) {
+          current = current.parent;
+        }
+        if (current && current.userData && current.userData.zoneId) {
+          selectZone(current.userData.zoneId);
+        }
+      }
+    });
+
+    let activeZoneId = null;
+    const userNotesStore = {};
+
+    function selectZone(zoneId) {
+      activeZoneId = zoneId;
+      const zone = TOWN_ZONES.find(z => z.id === zoneId);
+      if (!zone) return;
+
+      playChime(520);
+      animateCameraTo(zone.camPos, zone.targetPos);
+
+      // Populate Panel with Name, Category, and BLANK for user
+      const panelTag = document.getElementById('panel-tag');
+      const panelTitle = document.getElementById('panel-title');
+      const notesField = document.getElementById('zone-user-notes');
+
+      panelTag.className = `panel-tag tag-${zone.category}`;
+      panelTag.textContent = zone.tag;
+      panelTitle.innerHTML = `${zone.icon} ${zone.name}`;
+
+      notesField.value = userNotesStore[zoneId] || '';
+      document.getElementById('inspector-panel').classList.add('open');
+    }
+
+    document.getElementById('zone-user-notes').addEventListener('input', (e) => {
+      if (activeZoneId) {
+        userNotesStore[activeZoneId] = e.target.value;
+      }
+    });
+
+    function animateCameraTo(targetCamPos, targetLookAt, duration = 1200) {
+      new TWEEN.Tween(camera.position)
+        .to(targetCamPos, duration)
+        .easing(TWEEN.Easing.Cubic.Out)
+        .start();
+
+      new TWEEN.Tween(controls.target)
+        .to(targetLookAt, duration)
+        .easing(TWEEN.Easing.Cubic.Out)
+        .start();
+    }
+
+    document.getElementById('panel-close-btn').addEventListener('click', () => {
+      document.getElementById('inspector-panel').classList.remove('open');
+    });
+
+    document.getElementById('btn-focus-zone').addEventListener('click', () => {
+      if (!activeZoneId) return;
+      const zone = TOWN_ZONES.find(z => z.id === activeZoneId);
+      if (!zone) return;
+
+      const closeCam = {
+        x: zone.pos.x + 8,
+        y: zone.pos.y + 4,
+        z: zone.pos.z + 10
+      };
+      animateCameraTo(closeCam, zone.pos, 900);
+    });
+
+    document.getElementById('btn-panel-next').addEventListener('click', () => {
+      if (!activeZoneId) {
+        selectZone(TOWN_ZONES[0].id);
+        return;
+      }
+      const idx = TOWN_ZONES.findIndex(z => z.id === activeZoneId);
+      const nextIdx = (idx + 1) % TOWN_ZONES.length;
+      selectZone(TOWN_ZONES[nextIdx].id);
+    });
+
+    /* Quick Shortcuts */
+    document.getElementById('btn-quick-welcome').addEventListener('click', () => selectZone('welcome-arch'));
+    document.getElementById('btn-quick-commercial').addEventListener('click', () => selectZone('tailor-shop'));
+
+    /* Filter Bar Logic */
+    const filterChips = document.querySelectorAll('.filter-chip');
+    filterChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        filterChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+
+        const filter = chip.dataset.filter;
+        markersMap.forEach((marker, zoneId) => {
+          const zone = TOWN_ZONES.find(z => z.id === zoneId);
+          if (filter === 'all' || zone.category === filter) {
+            marker.el.style.opacity = '1';
+            marker.el.style.pointerEvents = 'auto';
+          } else {
+            marker.el.style.opacity = '0.12';
+            marker.el.style.pointerEvents = 'none';
+          }
+        });
+      });
+    });
+
+    /* Bottom Preset Views */
+    const viewButtons = document.querySelectorAll('.view-btn[data-view]');
+    viewButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        viewButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const view = btn.dataset.view;
+        switch (view) {
+          case 'overview':
+            animateCameraTo({ x: 0, y: 115, z: 165 }, { x: 0, y: 0, z: 0 });
+            break;
+          case 'welcome':
+            selectZone('welcome-arch');
+            break;
+          case 'commercial':
+            selectZone('grocery-store');
+            break;
+          case 'tailor':
+            selectZone('tailor-shop');
+            break;
+          case 'pub':
+            selectZone('tavern-pub');
+            break;
+          case 'veterans':
+            selectZone('veterans-west');
+            break;
+          case 'school':
+            selectZone('school-campus');
+            break;
+          case 'sports':
+            selectZone('basketball-courts');
+            break;
+          case 'transit':
+            selectZone('train-station');
+            break;
+        }
+      });
+    });
+
+    // 2D Blueprint Toggle
+    let isBlueprint = false;
+    const blueprintBtn = document.getElementById('btn-toggle-camera-mode');
+    blueprintBtn.addEventListener('click', () => {
+      isBlueprint = !isBlueprint;
+      if (isBlueprint) {
+        blueprintBtn.textContent = '🎥 3D Perspective';
+        animateCameraTo({ x: 0, y: 220, z: 0.1 }, { x: 0, y: 0, z: 0 }, 1000);
+      } else {
+        blueprintBtn.textContent = '📐 2D Blueprint';
+        animateCameraTo({ x: 0, y: 115, z: 165 }, { x: 0, y: 0, z: 0 }, 1000);
+      }
+    });
+
+    document.getElementById('btn-reset-cam').addEventListener('click', () => {
+      animateCameraTo({ x: 0, y: 115, z: 165 }, { x: 0, y: 0, z: 0 });
+      document.getElementById('inspector-panel').classList.remove('open');
+    });
+
+    document.getElementById('compass-btn').addEventListener('click', () => {
+      const radius = Math.sqrt(camera.position.x ** 2 + camera.position.z ** 2);
+      animateCameraTo({ x: 0, y: camera.position.y, z: radius }, { x: 0, y: 0, z: 0 }, 800);
+    });
+
+    /* Atmosphere / Time of Day */
+    const todStates = ['day', 'sunset', 'night'];
+    let todIdx = 0;
+    const todBtn = document.getElementById('btn-tod');
+    const todIcon = document.getElementById('tod-icon');
+    const todLabel = document.getElementById('tod-label');
+
+    todBtn.addEventListener('click', () => {
+      todIdx = (todIdx + 1) % todStates.length;
+      const state = todStates[todIdx];
+
+      if (state === 'day') {
+        todIcon.textContent = '☀️';
+        todLabel.textContent = 'Daylight';
+        scene.background.setHex(0x93c5fd);
+        scene.fog.color.setHex(0x93c5fd);
+        ambientLight.intensity = 0.72;
+        dirLight.intensity = 0.95;
+        dirLight.color.setHex(0xfffaed);
+      } else if (state === 'sunset') {
+        todIcon.textContent = '🌅';
+        todLabel.textContent = 'Golden Hour';
+        scene.background.setHex(0xf97316);
+        scene.fog.color.setHex(0xf97316);
+        ambientLight.intensity = 0.48;
+        dirLight.intensity = 1.15;
+        dirLight.color.setHex(0xfb923c);
+      } else if (state === 'night') {
+        todIcon.textContent = '🌙';
+        todLabel.textContent = 'Suburban Night';
+        scene.background.setHex(0x090d16);
+        scene.fog.color.setHex(0x090d16);
+        ambientLight.intensity = 0.22;
+        dirLight.intensity = 0.30;
+        dirLight.color.setHex(0x93c5fd);
+      }
+    });
+
+    /* Web Audio API Engine */
+    let audioCtx = null;
+    let isAudioPlaying = false;
+    let ambientGain = null;
+
+    function initAudio() {
+      if (audioCtx) return;
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContext();
+
+      const bufferSize = audioCtx.sampleRate * 2;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = buffer;
+      noise.loop = true;
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 350;
+
+      ambientGain = audioCtx.createGain();
+      ambientGain.gain.value = 0.05;
+
+      noise.connect(filter);
+      filter.connect(ambientGain);
+      ambientGain.connect(audioCtx.destination);
+      noise.start();
+    }
+
+    function playChime(freq = 520) {
+      if (!audioCtx) initAudio();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.5, audioCtx.currentTime + 0.15);
+
+      g.gain.setValueAtTime(0, audioCtx.currentTime);
+      g.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.35);
+
+      osc.connect(g);
+      g.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.38);
+    }
+
+    const audioBtn = document.getElementById('btn-audio');
+    const audioIcon = document.getElementById('audio-icon');
+    audioBtn.addEventListener('click', () => {
+      initAudio();
+      if (!isAudioPlaying) {
+        audioCtx.resume();
+        ambientGain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        isAudioPlaying = true;
+        audioIcon.textContent = '🔊';
+        audioBtn.style.borderColor = 'var(--accent-emerald)';
+      } else {
+        ambientGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        isAudioPlaying = false;
+        audioIcon.textContent = '🔇';
+        audioBtn.style.borderColor = 'var(--card-border)';
+      }
+    });
+
+    /* Main Animation Loop */
+    const compassArrow = document.getElementById('compass-arrow');
+    let lastTime = performance.now();
+
+    function animate(currentTime) {
+      requestAnimationFrame(animate);
+      const delta = Math.min((currentTime - lastTime) / 1000, 0.1);
+      lastTime = currentTime;
+
+      TWEEN.update();
+      controls.update();
+
+      // Update AI Citizens walking across town
+      updateCitizens(delta);
+
+      updateLabelsPosition();
+
+      const angle = controls.getAzimuthalAngle();
+      compassArrow.style.transform = `rotate(${-angle * (180 / Math.PI)}deg)`;
+
+      renderer.render(scene, camera);
+    }
+
+    // Initial render
+    controls.update();
+    updateLabelsPosition();
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
