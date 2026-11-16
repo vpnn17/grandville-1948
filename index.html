@@ -541,6 +541,181 @@
       .brand-title { font-size: 15px; }
       .inspector-panel { width: 100%; top: auto; height: 55vh; right: 0; bottom: 0; border-radius: 20px 20px 0 0; }
     }
+  
+    /* Google Maps Style Pegman & Street View HUD */
+    .view-btn.gold-accent {
+      color: #fbbf24 !important;
+      border-color: rgba(251, 191, 36, 0.45) !important;
+      font-weight: 700 !important;
+    }
+    .view-btn.gold-accent:hover {
+      background: rgba(251, 191, 36, 0.18) !important;
+      border-color: #fbbf24 !important;
+      transform: translateY(-2px);
+    }
+
+    .streetview-hud {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 50;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+      animation: svFadeIn 0.3s ease;
+    }
+
+    .streetview-hud.active {
+      display: flex;
+    }
+
+    @keyframes svFadeIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .streetview-top-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      pointer-events: auto;
+    }
+
+    .btn-exit-streetview {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1.5px solid rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+      padding: 9px 18px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .btn-exit-streetview:hover {
+      background: #f43f5e;
+      border-color: #f43f5e;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(244, 63, 94, 0.5);
+    }
+
+    .street-name-pill {
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1.5px solid rgba(56, 189, 248, 0.4);
+      padding: 8px 16px;
+      border-radius: 9999px;
+      color: #38bdf8;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .streetview-controls-card {
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      padding: 12px 16px;
+      border-radius: 14px;
+      color: #f8fafc;
+      font-size: 12px;
+      line-height: 1.65;
+      max-width: 340px;
+      pointer-events: auto;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+    }
+
+    .key-badge {
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.32);
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-family: monospace;
+      font-weight: 800;
+      color: #fbbf24;
+      font-size: 11px;
+    }
+
+    /* Floating Pegman Button (Bottom Right) */
+    .pegman-fab {
+      position: absolute;
+      bottom: 86px;
+      right: 24px;
+      z-index: 35;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #fbbf24;
+      border: 2.5px solid #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      box-shadow: 0 10px 25px rgba(251, 191, 36, 0.45), 0 4px 12px rgba(0,0,0,0.6);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s;
+      user-select: none;
+    }
+
+    .pegman-fab:hover {
+      transform: scale(1.14);
+      box-shadow: 0 14px 32px rgba(251, 191, 36, 0.65);
+      background: #f59e0b;
+    }
+
+    .pegman-fab:active, .pegman-fab.dragging {
+      cursor: grabbing;
+      transform: scale(0.95);
+    }
+
+    .pegman-fab svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    /* Citizen Hover Tooltip */
+    #citizen-hover-tooltip {
+      position: absolute;
+      z-index: 45;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1.5px solid #fbbf24;
+      color: #ffffff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 11.5px;
+      font-weight: 700;
+      pointer-events: none;
+      display: none;
+      transform: translate(-50%, -130%);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+      white-space: nowrap;
+    }
+
+    #streetview-crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.65);
+      border: 1.5px solid rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+      z-index: 30;
+      display: none;
+    }
+
   </style>
 </head>
 <body>
@@ -603,6 +778,7 @@
     <button class="view-btn" data-view="school">🏫 School Campus</button>
     <button class="view-btn" data-view="sports">🏀 Basketball Court</button>
     <button class="view-btn" data-view="transit">🚆 Train Station</button>
+    <button class="view-btn gold-accent" id="btn-enter-streetview" title="Enter First-Person Street View (WASD)">🚶‍♂️ Street View</button>
     <div class="divider"></div>
     <button class="view-btn" id="btn-toggle-camera-mode" title="Toggle Perspective / Top-Down Blueprint View">📐 2D Blueprint</button>
     <button class="view-btn" id="btn-reset-cam" title="Reset Camera">↺ Reset</button>
@@ -616,6 +792,35 @@
     <div>🎯 <b>Click Any Place:</b> Show Name (Blank below to fill in)</div>
     <div>🚶 <b>Walking Citizens:</b> Non-repetitive AI, enter shops & change outfits!</div>
   </div>
+
+    <!-- Floating Google Maps Pegman Button -->
+  <div class="pegman-fab" id="pegman-fab" title="Click or Drag onto Town to Enter Street View!">
+    <svg viewBox="0 0 24 24" fill="#090d16">
+      <circle cx="12" cy="4" r="2.5" />
+      <path d="M15 8.5C15 8.22 14.78 8 14.5 8H9.5C9.22 8 9 8.22 9 8.5V13.5C9 13.78 9.22 14 9.5 14H10.5V20.5C10.5 20.78 10.72 21 11 21H13C13.28 21 13.5 20.78 13.5 20.5V14H14.5C14.78 14 15 13.78 15 13.5V8.5Z" />
+    </svg>
+  </div>
+
+  <!-- Street View HUD & Overlays (Google Maps First-Person) -->
+  <div class="streetview-hud" id="streetview-hud">
+    <div class="streetview-top-bar">
+      <button class="btn-exit-streetview" id="btn-exit-streetview" title="Exit Street View (ESC)">
+        <span>⬅</span> <span>Back to Birds-Eye Map</span> <span class="key-badge">ESC</span>
+      </button>
+      <div class="street-name-pill" id="streetview-location-pill">
+        <span>📍</span> <span id="streetview-location-name">Broadway & Freedom Boulevard</span>
+      </div>
+    </div>
+    <div class="streetview-controls-card">
+      <div style="font-weight: 800; color: #fbbf24; margin-bottom: 4px;">🚶 1948 Street View First-Person Mode</div>
+      <div>• <span class="key-badge">W</span> <span class="key-badge">A</span> <span class="key-badge">S</span> <span class="key-badge">D</span> / Arrows: Walk</div>
+      <div>• <b>Mouse Drag</b>: Look around 360°</div>
+      <div>• <span class="key-badge">Shift</span>: Run / Sprint</div>
+      <div>• <span class="key-badge">ESC</span>: Exit Street View</div>
+    </div>
+  </div>
+  <div id="streetview-crosshair"></div>
+  <div id="citizen-hover-tooltip">🚶 Click to Possess Citizen (Street View)!</div>
 
   <!-- Compass HUD -->
   <div class="compass-hud" id="compass-btn" title="Click to Align View North">
@@ -2916,6 +3121,7 @@
 
     const outfitColors = [0x1e3a8a, 0x991b1b, 0x14532d, 0x78350f, 0x475569, 0xd97706, 0x065f46];
     const citizens = [];
+    const citizenMeshes = [];
 
     // Helper: Create a 1948 Character Mesh with Animated Limbs
     function createCitizen(startPos, charType = 'man') {
@@ -2975,6 +3181,9 @@
       // Autonomous Citizen State Machine
       const citizenObj = {
         mesh: charGroup,
+        head: head,
+        hatBrim: hatBrim,
+        hatCrown: hatCrown,
         torsoMat: torsoMat,
         hatMat: hatMat,
         groceryBag: groceryBag,
@@ -2988,6 +3197,15 @@
         targetDest: null,
         animTime: Math.random() * 10
       };
+
+      charGroup.userData.citizenObj = citizenObj;
+      charGroup.traverse((child) => {
+        if (child.isMesh) {
+          child.userData.citizenObj = citizenObj;
+          child.userData.isCitizen = true;
+        }
+      });
+      citizenMeshes.push(charGroup);
 
       pickNewDestination(citizenObj);
       citizens.push(citizenObj);
@@ -3017,6 +3235,9 @@
     // Update AI & Animate Characters each frame
     function updateCitizens(delta) {
       citizens.forEach(c => {
+        if (isStreetView && c === possessedCitizen) {
+          return; // Player is controlling this citizen in Street View!
+        }
         if (c.state === 'WALKING') {
           // Vector towards target destination
           const dx = c.targetDest.x - c.mesh.position.x;
@@ -3150,8 +3371,32 @@
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
+    // Hover Tooltip when cursor points at any citizen
+    window.addEventListener('pointermove', (e) => {
+      if (isStreetView || isDraggingPegman) {
+        document.getElementById('citizen-hover-tooltip').style.display = 'none';
+        return;
+      }
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const citizenHits = raycaster.intersectObjects(citizenMeshes, true);
+      const tooltip = document.getElementById('citizen-hover-tooltip');
+      if (citizenHits.length > 0) {
+        tooltip.style.display = 'block';
+        tooltip.style.left = e.clientX + 'px';
+        tooltip.style.top = e.clientY + 'px';
+        document.body.style.cursor = 'pointer';
+      } else {
+        tooltip.style.display = 'none';
+        if (!isMouseDownLooking) document.body.style.cursor = 'default';
+      }
+    });
+
     window.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('.top-header') || e.target.closest('.filter-bar') || e.target.closest('.bottom-bar') || e.target.closest('.inspector-panel')) {
+      if (isStreetView) return;
+      if (e.target.closest('.top-header') || e.target.closest('.filter-bar') || e.target.closest('.bottom-bar') || e.target.closest('.inspector-panel') || e.target.closest('#streetview-hud') || e.target.closest('#pegman-fab')) {
         return;
       }
 
@@ -3159,6 +3404,22 @@
       mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
       raycaster.setFromCamera(mouse, camera);
+
+      // 1. Check if user clicked directly on a walking citizen to possess!
+      const citizenHits = raycaster.intersectObjects(citizenMeshes, true);
+      if (citizenHits.length > 0) {
+        let current = citizenHits[0].object;
+        while (current && (!current.userData || !current.userData.citizenObj)) {
+          current = current.parent;
+        }
+        if (current && current.userData && current.userData.citizenObj) {
+          playChime(660);
+          enterStreetView(current.userData.citizenObj.mesh.position, current.userData.citizenObj);
+          return;
+        }
+      }
+
+      // 2. Otherwise check interactive buildings
       const intersects = raycaster.intersectObjects(interactiveObjects, true);
 
       if (intersects.length > 0) {
@@ -3447,6 +3708,378 @@
       }
     });
 
+    /* =====================================================================
+       5. STREET VIEW / FIRST-PERSON EXPLORATION CONTROLLER (GOOGLE MAPS STYLE)
+       ===================================================================== */
+    let isStreetView = false;
+    let possessedCitizen = null;
+    const fpPlayer = {
+      x: 0,
+      z: 20,
+      y: 0,
+      yaw: 0,       // horizontal look angle (radians)
+      pitch: 0,     // vertical look angle (radians)
+      speed: 8.5,   // walking speed
+      runSpeed: 16.0,
+      stepTimer: 0,
+      isWalking: false,
+      keys: {
+        forward: false,
+        backward: false,
+        left: false,
+        right: false,
+        run: false
+      }
+    };
+
+    let savedCamPos = { x: 0, y: 115, z: 165 };
+    let savedCamTarget = { x: 0, y: 0, z: 0 };
+    let isMouseDownLooking = false;
+    let prevMouseX = 0;
+    let prevMouseY = 0;
+
+    // Pegman Drag & Drop setup
+    const pegmanFab = document.getElementById('pegman-fab');
+    let isDraggingPegman = false;
+    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const planeRaycaster = new THREE.Raycaster();
+    const planeIntersectPoint = new THREE.Vector3();
+
+    // Drop target ring indicator on ground
+    const dropTargetGeo = new THREE.RingGeometry(1.2, 1.8, 32);
+    dropTargetGeo.rotateX(-Math.PI / 2);
+    const dropTargetMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0 });
+    const dropTargetMesh = new THREE.Mesh(dropTargetGeo, dropTargetMat);
+    dropTargetMesh.position.y = 0.08;
+    scene.add(dropTargetMesh);
+
+    pegmanFab.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      isDraggingPegman = true;
+      pegmanFab.classList.add('dragging');
+      dropTargetMat.opacity = 0.85;
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (isDraggingPegman) {
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        planeRaycaster.setFromCamera(mouse, camera);
+        if (planeRaycaster.ray.intersectPlane(groundPlane, planeIntersectPoint)) {
+          dropTargetMesh.position.x = planeIntersectPoint.x;
+          dropTargetMesh.position.z = planeIntersectPoint.z;
+          dropTargetMesh.position.y = 0.1;
+        }
+      }
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      if (isDraggingPegman) {
+        isDraggingPegman = false;
+        pegmanFab.classList.remove('dragging');
+        dropTargetMat.opacity = 0;
+
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        planeRaycaster.setFromCamera(mouse, camera);
+        if (planeRaycaster.ray.intersectPlane(groundPlane, planeIntersectPoint)) {
+          const dropX = Math.max(-130, Math.min(130, planeIntersectPoint.x));
+          const dropZ = Math.max(-130, Math.min(130, planeIntersectPoint.z));
+          enterStreetView({ x: dropX, z: dropZ });
+        }
+      }
+    });
+
+    pegmanFab.addEventListener('click', (e) => {
+      if (!isStreetView && Math.abs(dropTargetMesh.position.x) < 0.1 && Math.abs(dropTargetMesh.position.z) < 0.1) {
+        enterStreetView();
+      }
+    });
+
+    document.getElementById('btn-enter-streetview').addEventListener('click', () => {
+      enterStreetView();
+    });
+
+    // Mouse look drag inside Street View
+    window.addEventListener('mousedown', (e) => {
+      if (!isStreetView) return;
+      if (e.target.closest('#streetview-hud')) return;
+      isMouseDownLooking = true;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+      document.body.style.cursor = 'grabbing';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (isStreetView && isMouseDownLooking) {
+        const dx = e.clientX - prevMouseX;
+        const dy = e.clientY - prevMouseY;
+        prevMouseX = e.clientX;
+        prevMouseY = e.clientY;
+
+        fpPlayer.yaw += dx * 0.0032;
+        fpPlayer.pitch -= dy * 0.0028;
+        fpPlayer.pitch = Math.max(-1.25, Math.min(1.25, fpPlayer.pitch));
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      isMouseDownLooking = false;
+      if (isStreetView) document.body.style.cursor = 'grab';
+    });
+
+    // Keyboard WASD Controls
+    window.addEventListener('keydown', (e) => {
+      if (!isStreetView) return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      const key = e.key.toLowerCase();
+      if (key === 'w' || key === 'arrowup') fpPlayer.keys.forward = true;
+      if (key === 's' || key === 'arrowdown') fpPlayer.keys.backward = true;
+      if (key === 'a' || key === 'arrowleft') fpPlayer.keys.left = true;
+      if (key === 'd' || key === 'arrowright') fpPlayer.keys.right = true;
+      if (e.shiftKey) fpPlayer.keys.run = true;
+      if (key === 'escape') {
+        exitStreetView();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (!isStreetView) return;
+      const key = e.key.toLowerCase();
+      if (key === 'w' || key === 'arrowup') fpPlayer.keys.forward = false;
+      if (key === 's' || key === 'arrowdown') fpPlayer.keys.backward = false;
+      if (key === 'a' || key === 'arrowleft') fpPlayer.keys.left = false;
+      if (key === 'd' || key === 'arrowright') fpPlayer.keys.right = false;
+      if (!e.shiftKey) fpPlayer.keys.run = false;
+    });
+
+    // Enter & Exit Functions
+    function enterStreetView(targetPos, citizen) {
+      if (isStreetView) return;
+
+      playChime(580);
+      isStreetView = true;
+      controls.enabled = false;
+
+      // Save orbital view to restore upon exit
+      savedCamPos = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+      savedCamTarget = { x: controls.target.x, y: controls.target.y, z: controls.target.z };
+
+      if (citizen) {
+        possessedCitizen = citizen;
+        fpPlayer.x = citizen.mesh.position.x;
+        fpPlayer.z = citizen.mesh.position.z;
+        fpPlayer.yaw = citizen.mesh.rotation.y;
+        fpPlayer.pitch = 0;
+        if (citizen.head) citizen.head.visible = false;
+        if (citizen.hatBrim) citizen.hatBrim.visible = false;
+        if (citizen.hatCrown) citizen.hatCrown.visible = false;
+      } else if (targetPos) {
+        possessedCitizen = null;
+        fpPlayer.x = targetPos.x;
+        fpPlayer.z = targetPos.z;
+        fpPlayer.yaw = 0;
+        fpPlayer.pitch = 0;
+      } else {
+        if (citizens.length > 0) {
+          const c = citizens[0];
+          possessedCitizen = c;
+          fpPlayer.x = c.mesh.position.x;
+          fpPlayer.z = c.mesh.position.z;
+          fpPlayer.yaw = c.mesh.rotation.y;
+          fpPlayer.pitch = 0;
+          if (c.head) c.head.visible = false;
+          if (c.hatBrim) c.hatBrim.visible = false;
+          if (c.hatCrown) c.hatCrown.visible = false;
+        } else {
+          fpPlayer.x = 0;
+          fpPlayer.z = 25;
+          fpPlayer.yaw = 0;
+          fpPlayer.pitch = 0;
+        }
+      }
+
+      // Hide orbital labels & UI
+      document.getElementById('labels-container').style.display = 'none';
+      document.getElementById('filter-bar').style.display = 'none';
+      document.querySelector('.bottom-bar').style.display = 'none';
+      document.getElementById('compass-btn').style.display = 'none';
+      document.getElementById('pegman-fab').style.display = 'none';
+      document.getElementById('inspector-panel').classList.remove('open');
+
+      // Show Street View HUD
+      document.getElementById('streetview-hud').classList.add('active');
+      document.getElementById('streetview-crosshair').style.display = 'block';
+      document.body.style.cursor = 'grab';
+
+      // Swoop camera down into eye level
+      new TWEEN.Tween(camera.position)
+        .to({ x: fpPlayer.x, y: 1.65, z: fpPlayer.z }, 850)
+        .easing(TWEEN.Easing.Cubic.Out)
+        .start();
+
+      updateStreetViewLocationName();
+    }
+
+    function exitStreetView() {
+      if (!isStreetView) return;
+
+      playChime(350);
+      isStreetView = false;
+      document.body.style.cursor = 'default';
+
+      // Restore citizen head & hat
+      if (possessedCitizen) {
+        if (possessedCitizen.head) possessedCitizen.head.visible = true;
+        if (possessedCitizen.hatBrim) possessedCitizen.hatBrim.visible = true;
+        if (possessedCitizen.hatCrown) possessedCitizen.hatCrown.visible = true;
+        possessedCitizen = null;
+      }
+
+      // Hide Street View HUD
+      document.getElementById('streetview-hud').classList.remove('active');
+      document.getElementById('streetview-crosshair').style.display = 'none';
+
+      // Restore orbital UI
+      document.getElementById('labels-container').style.display = 'block';
+      document.getElementById('filter-bar').style.display = 'flex';
+      document.querySelector('.bottom-bar').style.display = 'flex';
+      document.getElementById('compass-btn').style.display = 'flex';
+      document.getElementById('pegman-fab').style.display = 'flex';
+
+      // Swoop camera back up to overview
+      new TWEEN.Tween(camera.position)
+        .to(savedCamPos, 900)
+        .easing(TWEEN.Easing.Cubic.Out)
+        .onComplete(() => {
+          controls.enabled = true;
+          controls.target.set(savedCamTarget.x, savedCamTarget.y, savedCamTarget.z);
+        })
+        .start();
+
+      new TWEEN.Tween(controls.target)
+        .to(savedCamTarget, 900)
+        .easing(TWEEN.Easing.Cubic.Out)
+        .start();
+    }
+
+    document.getElementById('btn-exit-streetview').addEventListener('click', exitStreetView);
+
+    // Update Street View Player Movement & Viewpoint
+    function updateStreetView(delta) {
+      if (!isStreetView) return;
+
+      let moveFwd = 0;
+      let moveSide = 0;
+      if (fpPlayer.keys.forward) moveFwd += 1;
+      if (fpPlayer.keys.backward) moveFwd -= 1;
+      if (fpPlayer.keys.left) moveSide -= 1;
+      if (fpPlayer.keys.right) moveSide += 1;
+
+      fpPlayer.isWalking = (moveFwd !== 0 || moveSide !== 0);
+
+      if (fpPlayer.isWalking) {
+        const curSpeed = fpPlayer.keys.run ? fpPlayer.runSpeed : fpPlayer.speed;
+        
+        // Forward vector in horizontal XZ plane
+        const fwdX = Math.sin(fpPlayer.yaw);
+        const fwdZ = -Math.cos(fpPlayer.yaw);
+        const rightX = Math.cos(fpPlayer.yaw);
+        const rightZ = Math.sin(fpPlayer.yaw);
+
+        let vx = (fwdX * moveFwd) + (rightX * moveSide);
+        let vz = (fwdZ * moveFwd) + (rightZ * moveSide);
+        const len = Math.sqrt(vx * vx + vz * vz);
+        if (len > 0.001) {
+          vx /= len;
+          vz /= len;
+        }
+
+        fpPlayer.x += vx * curSpeed * delta;
+        fpPlayer.z += vz * curSpeed * delta;
+
+        // Town boundaries
+        fpPlayer.x = Math.max(-135, Math.min(135, fpPlayer.x));
+        fpPlayer.z = Math.max(-135, Math.min(135, fpPlayer.z));
+
+        // Step timer for head bobbing and footsteps
+        fpPlayer.stepTimer += delta * (fpPlayer.keys.run ? 14 : 9);
+      }
+
+      // Check elevation (ground vs arched footbridge in Central Park)
+      let groundY = 0;
+      if (Math.abs(fpPlayer.x) < 2.2 && fpPlayer.z >= 39 && fpPlayer.z <= 61) {
+        const s = (fpPlayer.z - 50) / 11;
+        groundY = 0.4 + 2.05 * (1 - s * s);
+      }
+      fpPlayer.y = groundY;
+
+      // Subtle head bob
+      const headBob = fpPlayer.isWalking ? Math.sin(fpPlayer.stepTimer) * 0.04 : 0;
+      camera.position.set(fpPlayer.x, groundY + 1.65 + headBob, fpPlayer.z);
+
+      // Camera look target
+      const lookDist = 20.0;
+      const targetX = camera.position.x + Math.sin(fpPlayer.yaw) * Math.cos(fpPlayer.pitch) * lookDist;
+      const targetY = camera.position.y + Math.sin(fpPlayer.pitch) * lookDist;
+      const targetZ = camera.position.z - Math.cos(fpPlayer.yaw) * Math.cos(fpPlayer.pitch) * lookDist;
+      camera.lookAt(targetX, targetY, targetZ);
+
+      // Sync possessed citizen mesh if active
+      if (possessedCitizen && possessedCitizen.mesh) {
+        possessedCitizen.mesh.position.set(fpPlayer.x, groundY, fpPlayer.z);
+        possessedCitizen.mesh.rotation.y = fpPlayer.yaw + Math.PI;
+        if (fpPlayer.isWalking) {
+          possessedCitizen.leftLeg.rotation.x = Math.sin(fpPlayer.stepTimer) * 0.55;
+          possessedCitizen.rightLeg.rotation.x = -Math.sin(fpPlayer.stepTimer) * 0.55;
+          possessedCitizen.leftArm.rotation.x = -Math.sin(fpPlayer.stepTimer) * 0.45;
+          possessedCitizen.rightArm.rotation.x = Math.sin(fpPlayer.stepTimer) * 0.45;
+        } else {
+          possessedCitizen.leftLeg.rotation.x = 0;
+          possessedCitizen.rightLeg.rotation.x = 0;
+          possessedCitizen.leftArm.rotation.x = 0;
+          possessedCitizen.rightArm.rotation.x = 0;
+        }
+      }
+    }
+
+    let lastLocUpdate = 0;
+    function updateStreetViewLocationName() {
+      const now = performance.now();
+      if (now - lastLocUpdate < 400) return;
+      lastLocUpdate = now;
+
+      let nearestZone = null;
+      let minDist = Infinity;
+      TOWN_ZONES.forEach(zone => {
+        const dx = zone.pos.x - fpPlayer.x;
+        const dz = zone.pos.z - fpPlayer.z;
+        const d = Math.sqrt(dx * dx + dz * dz);
+        if (d < minDist) {
+          minDist = d;
+          nearestZone = zone;
+        }
+      });
+
+      const locEl = document.getElementById('streetview-location-name');
+      if (nearestZone && minDist < 32) {
+        locEl.textContent = 'Near ' + nearestZone.name;
+      } else if (Math.abs(fpPlayer.z) < 18) {
+        locEl.textContent = 'Broadway & Freedom Boulevard';
+      } else if (fpPlayer.z > 35 && fpPlayer.z < 65 && Math.abs(fpPlayer.x) < 30) {
+        locEl.textContent = 'Central Memorial Park & Pond';
+      } else if (fpPlayer.z > 50) {
+        locEl.textContent = 'South Roosevelt Residential Sector';
+      } else if (fpPlayer.x < -30) {
+        locEl.textContent = 'West Maple Residential Sector';
+      } else if (fpPlayer.x > 30) {
+        locEl.textContent = 'East Oak Residential Sector';
+      } else {
+        locEl.textContent = 'Grandville Suburban Avenue';
+      }
+    }
+
     /* Main Animation Loop */
     const compassArrow = document.getElementById('compass-arrow');
     let lastTime = performance.now();
@@ -3457,15 +4090,19 @@
       lastTime = currentTime;
 
       TWEEN.update();
-      controls.update();
+
+      if (isStreetView) {
+        updateStreetView(delta);
+        updateStreetViewLocationName();
+      } else {
+        controls.update();
+        updateLabelsPosition();
+        const angle = controls.getAzimuthalAngle();
+        compassArrow.style.transform = `rotate(${-angle * (180 / Math.PI)}deg)`;
+      }
 
       // Update AI Citizens walking across town
       updateCitizens(delta);
-
-      updateLabelsPosition();
-
-      const angle = controls.getAzimuthalAngle();
-      compassArrow.style.transform = `rotate(${-angle * (180 / Math.PI)}deg)`;
 
       renderer.render(scene, camera);
     }
